@@ -16,11 +16,12 @@
 #define ECTF_CRYPTO_H
 
 #include "wolfssl/wolfcrypt/aes.h"
+#include "wolfssl/wolfcrypt/ecc.h"
 #include "wolfssl/wolfcrypt/hash.h"
 
 /******************************** MACRO DEFINITIONS ********************************/
 #define BLOCK_SIZE AES_BLOCK_SIZE
-#define KEY_SIZE 16
+#define KEY_SIZE 32
 #define HASH_SIZE MD5_DIGEST_SIZE
 
 /******************************** FUNCTION PROTOTYPES ********************************/
@@ -65,6 +66,10 @@ int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintex
  * @return 0 on success, non-zero for other error
  */
 int hash(void *data, size_t len, uint8_t *hash_out);
+
+
+// implement asymmetric encryption 
+// implement asymmetric decryption 
 
 #endif // CRYPTO_EXAMPLE
 #endif // ECTF_CRYPTO_H

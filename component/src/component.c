@@ -130,7 +130,7 @@ void boot() {
     LED_Off(LED2);
     LED_Off(LED3);
     // LED loop to show that boot occurred
-    while (1) {
+    for (int i = 0; i < 3; i++) {
         LED_On(LED1);
         MXC_Delay(500000);
         LED_On(LED2);

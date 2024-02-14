@@ -328,9 +328,8 @@ void boot() {
     char* data = "Crypto Example!";
     uint8_t ciphertext[BLOCK_SIZE];
     uint8_t key[KEY_SIZE];
-    
-    // Zero out the key
-    bzero(key, BLOCK_SIZE);
+
+    memcpy(key, AP_VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
 
     // Encrypt example data and print out
     encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
@@ -358,7 +357,7 @@ void boot() {
     #else
     // Everything after this point is modifiable in your design
     // LED loop to show that boot occurred
-    while (1) {
+    for (int i = 0; i < 3; i++) {
         LED_On(LED1);
         MXC_Delay(500000);
         LED_On(LED2);
@@ -476,6 +475,8 @@ void attempt_attest() {
 int main() {
     // Initialize board
     init();
+
+    // register components
 
     // Print the component IDs to be helpful
     // Your design does not need to do this
