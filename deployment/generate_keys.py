@@ -23,7 +23,7 @@ if __name__ == "__main__":
         pass
 
     keys = ['VALIDATION_KEY', 'SECURE_MESSAGING_KEY']
-    counters = ['VALIDATION_PADDING', 'SECURE_MESSAGING_PADDING']
+    counters = ['VALIDATION_COUNTER', 'SECURE_MESSAGING_COUNTER']
 
     for key in keys:
         write_key_to_file(generate_random_key(key_len), key)
