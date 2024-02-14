@@ -29,4 +29,4 @@ if __name__ == "__main__":
         write_key_to_file(generate_random_key(key_len), key)
 
     for counter in counters:    
-        write_counter_to_file(random.randint(max_counter), counter)
+        write_counter_to_file(random.randint(1, max_counter), counter)
