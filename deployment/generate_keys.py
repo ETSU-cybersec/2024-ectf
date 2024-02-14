@@ -3,21 +3,30 @@ import random
 def generate_random_key(length):
     return [random.randint(0, 9) for _ in range(length)]
 
-def write_key_to_file(key, name):
+def write_key_to_file(value, name):
     with open('global_secrets.h', 'a') as file:
         file.write(f"#define {name} (uint8_t[]){{")
-        for i in range(len(key) - 1):
-            file.write(f"{key[i]}, ")
-        file.write(f"{key[-1]}}}\n")
+        for i in range(len(value) - 1):
+            file.write(f"{value[i]}, ")
+        file.write(f"{value[-1]}}}\n")
+
+def write_counter_to_file(value, name):
+    with open('global_secrets.h', 'a') as file:
+        file.write(f'#define {name} {value}\n')
 
 if __name__ == "__main__":
     key_len = 32
-
+    max_counter = 1000
+    
     # clear the file if it exists
     with open('global_secrets.h', 'w') as file:
         pass
 
-    keys = ['AP_VALIDATION_KEY', 'COMP1_VALIDATION_KEY', 'COMP2_VALIDATION_KEY']
+    keys = ['VALIDATION_KEY', 'SECURE_MESSAGING_KEY']
+    counters = ['VALIDATION_PADDING', 'SECURE_MESSAGING_PADDING']
 
     for key in keys:
         write_key_to_file(generate_random_key(key_len), key)
+
+    for counter in counters:    
+        write_counter_to_file(random.randint(max_counter), counter)

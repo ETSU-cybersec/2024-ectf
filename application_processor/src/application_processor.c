@@ -329,7 +329,7 @@ void boot() {
     uint8_t ciphertext[BLOCK_SIZE];
     uint8_t key[KEY_SIZE];
 
-    memcpy(key, AP_VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
 
     // Encrypt example data and print out
     encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
