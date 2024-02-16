@@ -461,37 +461,6 @@ void attempt_attest() {
     }
 }
 
-void hooven() {
-	#ifdef CRYPTO_EXAMPLE
-	char* data = "Crypto Example!";
-    uint8_t ciphertext[BLOCK_SIZE];
-    uint8_t key[KEY_SIZE];
-
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-
-    // Encrypt example data and print out
-    encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
-    print_debug("Encrypted data: ");
-    print_hex_debug(ciphertext, BLOCK_SIZE);
-
-	int test;
-
-	test = asym_sign(ciphertext, BLOCK_SIZE);
-	
-	if(test != 0) {
-		print_error("Signing failed\n");
-	}
-
-	print_debug("Signed Data: ");
-	print_hex_debug(ciphertext, BLOCK_SIZE);
-
-
-    // Decrypt the encrypted message and print out
-    uint8_t decrypted[BLOCK_SIZE];
-    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
-    print_debug("Decrypted message: %s\r\n", decrypted);
-	#endif
-}
 /*********************************** MAIN *************************************/
 
 int main() {
@@ -518,9 +487,7 @@ int main() {
             attempt_replace();
         } else if (!strcmp(buf, "attest")) {
             attempt_attest();
-        } else if (!strcmp(buf, "hooven")) {
-			hooven();
-		} else {
+        } else {
             print_error("Unrecognized command '%s'\n", buf);
         }
     }
