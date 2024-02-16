@@ -1,5 +1,9 @@
 ## Project .gitignore ##
 
+deployment/global_secrets.h
+application_processor/ectf_params.h
+component/ectf_params.h
+
 .DS_Store
 .vscode/
 **/gcc
