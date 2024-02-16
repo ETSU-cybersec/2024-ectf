@@ -1,5 +1,5 @@
-#define VALIDATION_KEY (uint8_t[]){3, 4, 8, 9, 3, 6, 1, 7, 4, 5, 7, 7, 2, 7, 3, 9, 5, 7, 6, 0, 0, 4, 7, 9, 8, 6, 9, 3, 2, 9, 5, 4}
-#define SECURE_MESSAGING_KEY (uint8_t[]){4, 1, 8, 4, 2, 6, 3, 4, 9, 7, 6, 8, 1, 5, 1, 9, 1, 1, 1, 9, 4, 3, 7, 7, 2, 5, 1, 6, 1, 5, 4, 5}
-#define VALIDATION_COUNTER 156
-#define SECURE_MESSAGING_COUNTER 433
-#define FLASH_MAGIC 0xE79C0B6A
+#define VALIDATION_KEY (uint8_t[]){2, 4, 8, 2, 5, 4, 0, 1, 1, 2, 1, 6, 5, 8, 3, 8, 3, 4, 6, 6, 5, 0, 1, 8, 7, 6, 3, 5, 4, 3, 2, 6}
+#define SECURE_MESSAGING_KEY (uint8_t[]){9, 3, 6, 1, 1, 1, 4, 8, 8, 9, 5, 2, 5, 2, 6, 7, 5, 4, 8, 9, 6, 2, 5, 1, 7, 8, 2, 6, 0, 9, 3, 1}
+#define VALIDATION_COUNTER 71
+#define SECURE_MESSAGING_COUNTER 624
+#define FLASH_MAGIC 0xD6B21FA1

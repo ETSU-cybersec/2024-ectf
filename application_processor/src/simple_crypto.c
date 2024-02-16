@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#define HAVE_ECC_SIGN 1
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
  *
@@ -101,7 +102,26 @@ int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintex
  */
 int hash(void *data, size_t len, uint8_t *hash_out) {
     // Pass values to hash
-    return wc_Md5Hash((uint8_t *)data, len, hash_out);
+    return wc_Sha256Hash((uint8_t *)data, len, hash_out);
 }
 
+
+int asym_sign(uint8_t *ciphertext, size_t len) {
+	ecc_key key;
+	wc_ecc_init(&key);
+	WC_RNG rng;
+	wc_InitRng(&rng);
+	wc_ecc_make_key(&rng, 32, &key);
+	word32 result, sig_len;
+	byte sig[64];
+	sig_len = sizeof(sig);
+	
+	result = wc_ecc_sign_hash(ciphertext, len, sig, &sig_len, &rng, &key);
+	if (result != 0)
+	{
+		return result; //Error reporting
+	}
+
+	return 0;
+}
 #endif

@@ -14,16 +14,18 @@
 #if CRYPTO_EXAMPLE
 #ifndef ECTF_CRYPTO_H
 #define ECTF_CRYPTO_H
+#define HAVE_ECC
+#define HAVE_ECC_VERIFY
 
 #include "wolfssl/wolfcrypt/aes.h"
+#include "wolfssl/wolfcrypt/random.h"
 #include "wolfssl/wolfcrypt/ecc.h"
 #include "wolfssl/wolfcrypt/hash.h"
 
 /******************************** MACRO DEFINITIONS ********************************/
 #define BLOCK_SIZE AES_BLOCK_SIZE
 #define KEY_SIZE 32
-#define HASH_SIZE MD5_DIGEST_SIZE
-
+#define HASH_SIZE SHA256_DIGEST_SIZE
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
  *
@@ -69,6 +71,7 @@ int hash(void *data, size_t len, uint8_t *hash_out);
 
 
 // implement asymmetric encryption 
+int asym_sign(uint8_t *ciphertext, size_t len);
 // implement asymmetric decryption 
 
 #endif // CRYPTO_EXAMPLE
