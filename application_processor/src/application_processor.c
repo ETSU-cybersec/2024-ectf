@@ -336,14 +336,6 @@ void boot() {
     print_debug("Encrypted data: ");
     print_hex_debug(ciphertext, BLOCK_SIZE);
 
-    // Hash example encryption results 
-    uint8_t hash_out[HASH_SIZE];
-    hash(ciphertext, BLOCK_SIZE, hash_out);
-
-    // Output hash result
-    print_debug("Hash result: ");
-    print_hex_debug(hash_out, HASH_SIZE);
-    
     // Decrypt the encrypted message and print out
     uint8_t decrypted[BLOCK_SIZE];
     decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
