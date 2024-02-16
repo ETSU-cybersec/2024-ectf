@@ -367,8 +367,9 @@ void boot() {
 
 // Compare the entered PIN to the correct PIN
 int validate_pin() {
-    char buf[50];
-    recv_input("Enter pin: ", buf);
+    size_t size = 50;
+    char buf[size];
+    recv_input("Enter pin: ", buf, size);
     if (!strcmp(buf, AP_PIN)) {
         print_debug("Pin Accepted!\n");
         return SUCCESS_RETURN;
@@ -379,8 +380,9 @@ int validate_pin() {
 
 // Function to validate the replacement token
 int validate_token() {
-    char buf[50];
-    recv_input("Enter token: ", buf);
+    size_t size = 50;
+    char buf[size];
+    recv_input("Enter token: ", buf, size);
     if (!strcmp(buf, AP_TOKEN)) {
         print_debug("Token Accepted!\n");
         return SUCCESS_RETURN;
@@ -411,7 +413,8 @@ void attempt_boot() {
 
 // Replace a component if the PIN is correct
 void attempt_replace() {
-    char buf[50];
+    size_t size = 50;
+    char buf[size];
 
     if (validate_token()) {
         return;
@@ -420,9 +423,9 @@ void attempt_replace() {
     uint32_t component_id_in = 0;
     uint32_t component_id_out = 0;
 
-    recv_input("Component ID In: ", buf);
+    recv_input("Component ID In: ", buf, size);
     sscanf(buf, "%x", &component_id_in);
-    recv_input("Component ID Out: ", buf);
+    recv_input("Component ID Out: ", buf, size);
     sscanf(buf, "%x", &component_id_out);
 
     // Find the component to swap out
@@ -448,13 +451,14 @@ void attempt_replace() {
 
 // Attest a component if the PIN is correct
 void attempt_attest() {
-    char buf[50];
+    size_t size = 50;
+    char buf[size];
 
     if (validate_pin()) {
         return;
     }
     uint32_t component_id;
-    recv_input("Component ID: ", buf);
+    recv_input("Component ID: ", buf, size);
     sscanf(buf, "%x", &component_id);
     if (attest_component(component_id) == SUCCESS_RETURN) {
         print_success("Attest\n");
@@ -474,9 +478,10 @@ int main() {
     print_info("Application Processor Started\n");
 
     // Handle commands forever
-    char buf[100];
+    size_t size = 50;
+    char buf[size];
     while (1) {
-        recv_input("Enter Command: ", buf);
+        recv_input("Enter Command: ", buf, size);
 
         // Execute requested command
         if (!strcmp(buf, "list")) {
