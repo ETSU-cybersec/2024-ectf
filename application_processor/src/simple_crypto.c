@@ -17,7 +17,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#define HAVE_ECC_SIGN 1
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
  *
@@ -105,18 +104,34 @@ int hash(void *data, size_t len, uint8_t *hash_out) {
     return wc_Sha256Hash((uint8_t *)data, len, hash_out);
 }
 
+uint32_t custom_rand_generate(byte* data, word32 len) {
+	return MXC_TRNG_Random(data, len);
+}
 
 int asym_sign(uint8_t *ciphertext, size_t len) {
 	ecc_key key;
 	int makeKey, eccInit, rngInit;
+	int rngCheck;
+	byte rng;
 
-	WC_RNG rng;
-	rngInit = wc_InitRng(&rng);
+	rngInit = MXC_TRNG_Init();
+	if (rngInit != 0) {
+		printf("RNG INIT FAIL: %d\n", rngInit);
+	}
+
+	rngCheck = custom_rand_generate(&rng, 256);
+	if (rngCheck != 0) {
+		printf("RNG GEN FAIL: %d\n", rngCheck);
+	}
+	else {
+		printf("RNG VAL : %d\n", rng);
+	}
+
 	if (rngInit == 0) {
 		eccInit = wc_ecc_init(&key);
 
 		if (eccInit == 0) {
-			makeKey = wc_ecc_make_key(&rng, 32, &key);
+			makeKey = wc_ecc_make_key(/* TODO PASS RNG */, ECC_KEY_SIZE, &key);
 		
 			if(makeKey != 0) {
 				printf("MAKE KEY FAIL: %d\n", makeKey);
@@ -134,7 +149,7 @@ int asym_sign(uint8_t *ciphertext, size_t len) {
 	byte sig[64];
 	sig_len = sizeof(sig);
 	
-	result = wc_ecc_sign_hash(ciphertext, len, sig, &sig_len, &rng, &key);
+	result = wc_ecc_sign_hash(ciphertext, len, sig, &sig_len, /*TODO PASS RNG*/, &key);
 	if (result != 0){
 		printf("SIGN FAIL: %d\n", result); //Error reporting
 	}
