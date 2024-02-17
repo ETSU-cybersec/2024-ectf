@@ -108,18 +108,35 @@ int hash(void *data, size_t len, uint8_t *hash_out) {
 
 int asym_sign(uint8_t *ciphertext, size_t len) {
 	ecc_key key;
-	wc_ecc_init(&key);
+	int makeKey, eccInit, rngInit;
+
 	WC_RNG rng;
-	wc_InitRng(&rng);
-	wc_ecc_make_key(&rng, 32, &key);
+	rngInit = wc_InitRng(&rng);
+	if (rngInit == 0) {
+		eccInit = wc_ecc_init(&key);
+
+		if (eccInit == 0) {
+			makeKey = wc_ecc_make_key(&rng, 32, &key);
+		
+			if(makeKey != 0) {
+				printf("MAKE KEY FAIL: %d\n", makeKey);
+			}
+		}
+		else {
+			printf("KEY INIT FAIL: %d\n", eccInit);
+		}
+	}
+	else{
+		printf("RNG INIT FAIL: %d\n", rngInit);
+	} 
+
 	word32 result, sig_len;
 	byte sig[64];
 	sig_len = sizeof(sig);
 	
 	result = wc_ecc_sign_hash(ciphertext, len, sig, &sig_len, &rng, &key);
-	if (result != 0)
-	{
-		return result; //Error reporting
+	if (result != 0){
+		printf("SIGN FAIL: %d\n", result); //Error reporting
 	}
 
 	return 0;

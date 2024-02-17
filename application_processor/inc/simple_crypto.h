@@ -14,18 +14,21 @@
 #if CRYPTO_EXAMPLE
 #ifndef ECTF_CRYPTO_H
 #define ECTF_CRYPTO_H
-#define HAVE_ECC
-#define HAVE_ECC_VERIFY
+#define HAVE_ECC 1
+#define HAVE_ECC_VERIFY 1
 
 #include "wolfssl/wolfcrypt/aes.h"
 #include "wolfssl/wolfcrypt/random.h"
 #include "wolfssl/wolfcrypt/ecc.h"
-#include "wolfssl/wolfcrypt/hash.h"
+#include "wolfssl/wolfcrypt/sha256.h"
 
 /******************************** MACRO DEFINITIONS ********************************/
 #define BLOCK_SIZE AES_BLOCK_SIZE
 #define KEY_SIZE 32
 #define HASH_SIZE SHA256_DIGEST_SIZE
+#define ECC_KEY_SIZE 32
+#define ECC_KEY_CURVE ECC_SECP384R1
+
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
  *
