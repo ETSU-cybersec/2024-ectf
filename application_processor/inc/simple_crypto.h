@@ -14,9 +14,8 @@
 #if CRYPTO_EXAMPLE
 #ifndef ECTF_CRYPTO_H
 #define ECTF_CRYPTO_H
-#define HAVE_ECC 1
-#define HAVE_ECC_VERIFY 1
 
+#include "user_settings.h"
 #include "wolfssl/wolfcrypt/aes.h"
 #include "wolfssl/wolfcrypt/random.h"
 #include "wolfssl/wolfcrypt/ecc.h"
@@ -28,14 +27,6 @@
 #define BLOCK_SIZE AES_BLOCK_SIZE
 #define KEY_SIZE 32
 #define HASH_SIZE SHA256_DIGEST_SIZE
-#define ECC_KEY_SIZE 32
-#define ECC_KEY_CURVE ECC_SECP384R1
-
-#undef CUSTOM_RAND_TYPE
-#define CUSTOM_RAND_TYPE uint32_t
-extern uint32_t custom_rand_generate(byte* data, word32 len);
-#undef CUSTOM_RAND_GENERATE
-#define CUSTOM_RAND_GENERATE custom_rand_generate
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
  *
