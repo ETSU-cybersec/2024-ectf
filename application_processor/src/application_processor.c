@@ -239,11 +239,8 @@ int scan_components() {
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_SCAN;
 
-
         // Send out command and receive result
         int len = issue_cmd(addr, transmit_buffer, receive_buffer);
-
-  
 
         // Success, device is present
         if (len > 0) {
@@ -508,6 +505,13 @@ void hooven() {
     char* data = "Crypto Example!";
     uint8_t ciphertext[BLOCK_SIZE];
     uint8_t key[KEY_SIZE];
+	ecc_key ECCkey;
+	WC_RNG rng;
+
+	int keygen = ecc_keygen(&ECCkey, &rng);
+	if (keygen != 0) {
+		print_error("Error generating key: %d\n", keygen);
+	}
 
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
 
@@ -516,9 +520,10 @@ void hooven() {
     print_debug("Encrypted data: ");
     print_hex_debug(ciphertext, BLOCK_SIZE);
 
-
-	asym_sign(ciphertext, BLOCK_SIZE);
-
+	byte signature;
+	//int asym_sign(uint8_t *ciphertext, byte *sig_out, ecc_key *key, WC_RNG *rng
+	asym_sign(ciphertext, &signature, &ECCkey, &rng);
+	
 	// Decrypt the encrypted message and print out
     uint8_t decrypted[BLOCK_SIZE];
     decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
