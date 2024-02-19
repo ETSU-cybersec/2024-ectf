@@ -27,9 +27,7 @@
 #include "board_link.h"
 #include "simple_flash.h"
 #include "host_messaging.h"
-#ifdef CRYPTO_EXAMPLE
 #include "simple_crypto.h"
-#endif
 
 #ifdef POST_BOOT
 #include <stdint.h>
@@ -218,6 +216,14 @@ int scan_components() {
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_SCAN;
         
+		//Encrypt transmit_buffer
+		uint8_t ciphertext[BLOCK_SIZE];
+		uint8_t key[KEY_SIZE];
+		memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+
+		encrypt_sym(transmit_buffer, BLOCK_SIZE, key, ciphertext);
+		print_hex_debug(ciphertext, BLOCK_SIZE);
+
         // Send out command and receive result
         int len = issue_cmd(addr, transmit_buffer, receive_buffer);
 
@@ -321,7 +327,6 @@ int attest_component(uint32_t component_id) {
 // Boot message is customized through the AP_BOOT_MSG macro
 void boot() {
     // Example of how to utilize included simple_crypto.h
-    #ifdef CRYPTO_EXAMPLE
     // This string is 16 bytes long including null terminator
     // This is the block size of included symmetric encryption
     char* data = "Crypto Example!";
@@ -339,7 +344,6 @@ void boot() {
     uint8_t decrypted[BLOCK_SIZE];
     decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
     print_debug("Decrypted message: %s\r\n", decrypted);
-    #endif
 
     // POST BOOT FUNCTIONALITY
     // DO NOT REMOVE IN YOUR DESIGN
