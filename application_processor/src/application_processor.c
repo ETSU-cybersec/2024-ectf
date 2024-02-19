@@ -96,6 +96,9 @@ typedef enum {
 /********************************* GLOBAL VARIABLES **********************************/
 // Variable for information stored in flash memory
 flash_entry flash_status;
+uint8_t ciphertext[BLOCK_SIZE];
+uint8_t key[KEY_SIZE];
+uint8_t decrypted[BLOCK_SIZE];
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
@@ -110,7 +113,11 @@ flash_entry flash_status;
 
 */
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    return send_packet(address, len, buffer);
+    //Encrypt send
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)buffer, BLOCK_SIZE, key, ciphertext);
+    
+    return send_packet(address, KEY_SIZE * sizeof(uint8_t), ciphertext);
 }
 
 /**
@@ -125,7 +132,13 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
-    return poll_and_receive_packet(address, buffer);
+    poll_and_receive_packet(address, buffer);
+    
+    // //Decrypt receive
+	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+	decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
+    
+    return sizeof(buffer);
 }
 
 /**
@@ -178,17 +191,27 @@ void init() {
 
 // Send a command to a component and receive the result
 int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
+    //Encrypt transmit
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)transmit, BLOCK_SIZE, key, ciphertext);
+    
     // Send message
-    int result = send_packet(addr, sizeof(uint8_t), transmit);
+    int result = send_packet(addr, KEY_SIZE * sizeof(uint8_t), ciphertext);
     if (result == ERROR_RETURN) {
         return ERROR_RETURN;
     }
     
     // Receive message
     int len = poll_and_receive_packet(addr, receive);
+
+    // Decrypt receive
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    decrypt_sym(receive, BLOCK_SIZE, key, receive);
+
     if (len == ERROR_RETURN) {
         return ERROR_RETURN;
     }
+
     return len;
 }
 
@@ -215,17 +238,12 @@ int scan_components() {
         // Create command message 
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_SCAN;
-        
-		//Encrypt transmit_buffer
-		uint8_t ciphertext[BLOCK_SIZE];
-		uint8_t key[KEY_SIZE];
-		memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
 
-		encrypt_sym(transmit_buffer, BLOCK_SIZE, key, ciphertext);
-		print_hex_debug(ciphertext, BLOCK_SIZE);
 
         // Send out command and receive result
         int len = issue_cmd(addr, transmit_buffer, receive_buffer);
+
+  
 
         // Success, device is present
         if (len > 0) {
@@ -366,6 +384,21 @@ void boot() {
         LED_Off(LED3);
         MXC_Delay(500000);
     }
+    uint8_t message[] = "hi";
+    uint8_t len = sizeof(message) - 1; // Exclude null terminator
+    
+    secure_send(flash_status.component_ids[0], message, len);
+
+    uint8_t receive_buffer[50];
+    int received_length = secure_receive(flash_status.component_ids[0], receive_buffer);
+    
+    // Print received data
+    printf("Received message: ");
+    for (int i = 0; i <= received_length; i++) {
+        printf("%c", receive_buffer[i]);
+    }
+    printf("\n");
+
     #endif
 }
 

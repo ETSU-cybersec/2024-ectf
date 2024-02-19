@@ -85,6 +85,9 @@ void process_attest(void);
 // Global varaibles
 uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
 uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
+uint8_t ciphertext[BLOCK_SIZE];
+uint8_t key[KEY_SIZE];
+uint8_t decrypted[BLOCK_SIZE];
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
@@ -97,7 +100,11 @@ uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
  * This function must be implemented by your team to align with the security requirements.
 */
 void secure_send(uint8_t* buffer, uint8_t len) {
-    send_packet_and_ack(len, buffer); 
+    //Encrypt send
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)buffer, BLOCK_SIZE, key, ciphertext);
+    
+    send_packet_and_ack(KEY_SIZE * sizeof(uint8_t), ciphertext); 
 }
 
 /**
@@ -111,7 +118,12 @@ void secure_send(uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(uint8_t* buffer) {
-    return wait_and_receive_packet(buffer);
+    wait_and_receive_packet(buffer);
+    //Decrypt buffer
+	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+	decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
+    
+    return sizeof(buffer) / sizeof(buffer[0]);
 }
 
 /******************************* FUNCTION DEFINITIONS *********************************/
@@ -145,21 +157,31 @@ void boot() {
         LED_Off(LED3);
         MXC_Delay(500000);
     }
+
+    uint8_t receive_buffer[50];
+    int received_length = secure_receive(receive_buffer);
+    
+    // Print received data
+    printf("Received message: ");
+    for (int i = 0; i <= received_length; i++) {
+        printf("%c", receive_buffer[i]);
+    }
+    printf("\n");
+
+    uint8_t message[] = "hello";    
+    secure_send(message, sizeof(message) - 1);
+
     #endif
 }
 
 // Handle a transaction from the AP
 void component_process_cmd() {
-    //Decrypt AP Commands
-	uint8_t ciphertext[BLOCK_SIZE];
-	uint8_t key[KEY_SIZE];
+    // //Decrypt AP Commands
 	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+	decrypt_sym(receive_buffer, BLOCK_SIZE, key, decrypted);
 
-	uint8_t decrypted[BLOCK_SIZE];
-	decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
-	
-	command_message* command = (command_message*) receive_buffer;
-
+    //send_packet_and_ack(sizeof(decrypted), decrypted);
+	command_message* command = (command_message*) decrypted;
     // Output to application processor dependent on command received
     switch (command->opcode) {
     case COMPONENT_CMD_BOOT:
@@ -185,7 +207,12 @@ void process_boot() {
     // respond with the boot message
     uint8_t len = strlen(COMPONENT_BOOT_MSG) + 1;
     memcpy((void*)transmit_buffer, COMPONENT_BOOT_MSG, len);
-    send_packet_and_ack(len, transmit_buffer);
+    
+    //Encrypt transmit
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
+
+    send_packet_and_ack(sizeof(ciphertext), ciphertext);
     // Call the boot function
     boot();
 }
@@ -194,22 +221,32 @@ void process_scan() {
     // The AP requested a scan. Respond with the Component ID
     scan_message* packet = (scan_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
-    send_packet_and_ack(sizeof(scan_message), transmit_buffer);
+    //Encrypt transmit
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
+    
+    send_packet_and_ack(sizeof(ciphertext), ciphertext);
 }
 
 void process_validate() {
     // The AP requested a validation. Respond with the Component ID
     validate_message* packet = (validate_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
-    send_packet_and_ack(sizeof(validate_message), transmit_buffer);
-}
+    //Encrypt transmit
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
+
+    send_packet_and_ack(sizeof(ciphertext), ciphertext);}
 
 void process_attest() {
     // The AP requested attestation. Respond with the attestation data
     uint8_t len = sprintf((char*)transmit_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n",
                 ATTESTATION_LOC, ATTESTATION_DATE, ATTESTATION_CUSTOMER) + 1;
-    send_packet_and_ack(len, transmit_buffer);
-}
+    //Encrypt transmit
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
+
+    send_packet_and_ack(sizeof(ciphertext), ciphertext);}
 
 /*********************************** MAIN *************************************/
 
@@ -227,7 +264,6 @@ int main(void) {
 
     while (1) {
         wait_and_receive_packet(receive_buffer);
-
         component_process_cmd();
     }
 }

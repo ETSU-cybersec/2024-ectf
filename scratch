@@ -1,0 +1,29 @@
+## AP
+1. secure send
+    a) encrypt
+2. secure receive
+    b) decrypt
+
+## Component
+1. secure send
+    a) encrypt
+2. secure receive
+    b) decrypt
+
+
+
+// encrypt
+char* data = "Crypto Example!";
+uint8_t ciphertext[BLOCK_SIZE];
+uint8_t key[KEY_SIZE];
+memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+
+encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
+
+// decrypt
+uint8_t ciphertext[BLOCK_SIZE];
+uint8_t key[KEY_SIZE];
+memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+
+uint8_t decrypted[BLOCK_SIZE];
+decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
