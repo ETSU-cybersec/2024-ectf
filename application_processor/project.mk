@@ -22,6 +22,8 @@ IPATH+=../deployment
 IPATH+=inc/
 VPATH+=src/
 
+CFLAGS+="-fstack-protector-all -mshstk -fsanitize=safe-stack -fsanitize=cfi -Wall -Wno-implicit-function-declaration -Wno-cpp"
+
 # ****************** eCTF Bootloader *******************
 # DO NOT REMOVE
 LINKERFILE=firmware.ld

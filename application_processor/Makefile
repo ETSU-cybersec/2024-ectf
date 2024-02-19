@@ -32,25 +32,25 @@
 ###############################################################################
 
 # ** Readme! **
-# Don't edit this file! This is the core Makefile for a MaximSDK 
-# project. The available configuration options can be overridden 
-# in "project.mk", on the command-line, or with system environment 
+# Don't edit this file! This is the core Makefile for a MaximSDK
+# project. The available configuration options can be overridden
+# in "project.mk", on the command-line, or with system environment
 # variables.
 
 # See https://analog-devices-msdk.github.io/msdk/USERGUIDE/#build-system
 # for more detailed instructions on how to use this system.
 
-# The detailed instructions mentioned above are easier to read than 
-# this file, but the comments found in this file also outline the 
-# available configuration variables. This file is organized into 
+# The detailed instructions mentioned above are easier to read than
+# this file, but the comments found in this file also outline the
+# available configuration variables. This file is organized into
 # sub-sections, some of which expose config variables.
 
 
 # *******************************************************************************
-# Set the target microcontroller and board to compile for.  
+# Set the target microcontroller and board to compile for
 
-# Every TARGET microcontroller has some Board Support Packages (BSPs) that are 
-# available for it under the MaximSDK/Libraries/Boards/TARGET folder.  The BSP 
+# Every TARGET microcontroller has some Board Support Packages (BSPs) that are
+# available for it under the MaximSDK/Libraries/Boards/TARGET folder.  The BSP
 # that gets selected is MaximSDK/Libraries/Boards/TARGET/BOARD.
 
 # Configuration Variables:
