@@ -27,9 +27,7 @@
 #include "board_link.h"
 #include "simple_flash.h"
 #include "host_messaging.h"
-#ifdef CRYPTO_EXAMPLE
 #include "simple_crypto.h"
-#endif
 
 #ifdef POST_BOOT
 #include <stdint.h>
@@ -54,7 +52,6 @@
 
 // Flash Macros
 #define FLASH_ADDR ((MXC_FLASH_MEM_BASE + MXC_FLASH_MEM_SIZE) - (2 * MXC_FLASH_PAGE_SIZE))
-#define FLASH_MAGIC 0xDEADBEEF
 
 // Library call return types
 #define SUCCESS_RETURN 0
@@ -219,6 +216,14 @@ int scan_components() {
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_SCAN;
         
+		//Encrypt transmit_buffer
+		uint8_t ciphertext[BLOCK_SIZE];
+		uint8_t key[KEY_SIZE];
+		memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+
+		encrypt_sym(transmit_buffer, BLOCK_SIZE, key, ciphertext);
+		print_hex_debug(ciphertext, BLOCK_SIZE);
+
         // Send out command and receive result
         int len = issue_cmd(addr, transmit_buffer, receive_buffer);
 
@@ -322,7 +327,6 @@ int attest_component(uint32_t component_id) {
 // Boot message is customized through the AP_BOOT_MSG macro
 void boot() {
     // Example of how to utilize included simple_crypto.h
-    #ifdef CRYPTO_EXAMPLE
     // This string is 16 bytes long including null terminator
     // This is the block size of included symmetric encryption
     char* data = "Crypto Example!";
@@ -336,19 +340,10 @@ void boot() {
     print_debug("Encrypted data: ");
     print_hex_debug(ciphertext, BLOCK_SIZE);
 
-    // Hash example encryption results 
-    uint8_t hash_out[HASH_SIZE];
-    hash(ciphertext, BLOCK_SIZE, hash_out);
-
-    // Output hash result
-    print_debug("Hash result: ");
-    print_hex_debug(hash_out, HASH_SIZE);
-    
     // Decrypt the encrypted message and print out
     uint8_t decrypted[BLOCK_SIZE];
     decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
     print_debug("Decrypted message: %s\r\n", decrypted);
-    #endif
 
     // POST BOOT FUNCTIONALITY
     // DO NOT REMOVE IN YOUR DESIGN
@@ -376,8 +371,9 @@ void boot() {
 
 // Compare the entered PIN to the correct PIN
 int validate_pin() {
-    char buf[50];
-    recv_input("Enter pin: ", buf);
+    size_t size = 50;
+    char buf[size];
+    recv_input("Enter pin: ", buf, size);
     if (!strcmp(buf, AP_PIN)) {
         print_debug("Pin Accepted!\n");
         return SUCCESS_RETURN;
@@ -388,8 +384,9 @@ int validate_pin() {
 
 // Function to validate the replacement token
 int validate_token() {
-    char buf[50];
-    recv_input("Enter token: ", buf);
+    size_t size = 50;
+    char buf[size];
+    recv_input("Enter token: ", buf, size);
     if (!strcmp(buf, AP_TOKEN)) {
         print_debug("Token Accepted!\n");
         return SUCCESS_RETURN;
@@ -420,7 +417,8 @@ void attempt_boot() {
 
 // Replace a component if the PIN is correct
 void attempt_replace() {
-    char buf[50];
+    size_t size = 50;
+    char buf[size];
 
     if (validate_token()) {
         return;
@@ -429,9 +427,9 @@ void attempt_replace() {
     uint32_t component_id_in = 0;
     uint32_t component_id_out = 0;
 
-    recv_input("Component ID In: ", buf);
+    recv_input("Component ID In: ", buf, size);
     sscanf(buf, "%x", &component_id_in);
-    recv_input("Component ID Out: ", buf);
+    recv_input("Component ID Out: ", buf, size);
     sscanf(buf, "%x", &component_id_out);
 
     // Find the component to swap out
@@ -457,17 +455,41 @@ void attempt_replace() {
 
 // Attest a component if the PIN is correct
 void attempt_attest() {
-    char buf[50];
+    size_t size = 50;
+    char buf[size];
 
     if (validate_pin()) {
         return;
     }
     uint32_t component_id;
-    recv_input("Component ID: ", buf);
+    recv_input("Component ID: ", buf, size);
     sscanf(buf, "%x", &component_id);
     if (attest_component(component_id) == SUCCESS_RETURN) {
         print_success("Attest\n");
     }
+}
+
+
+void hooven() {
+
+    char* data = "Crypto Example!";
+    uint8_t ciphertext[BLOCK_SIZE];
+    uint8_t key[KEY_SIZE];
+
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+
+    // Encrypt example data and print out
+    encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
+    print_debug("Encrypted data: ");
+    print_hex_debug(ciphertext, BLOCK_SIZE);
+
+
+	asym_sign(ciphertext, BLOCK_SIZE);
+
+	// Decrypt the encrypted message and print out
+    uint8_t decrypted[BLOCK_SIZE];
+    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
+    print_debug("Decrypted message: %s\r\n", decrypted);
 }
 
 /*********************************** MAIN *************************************/
@@ -483,9 +505,10 @@ int main() {
     print_info("Application Processor Started\n");
 
     // Handle commands forever
-    char buf[100];
+    size_t size = 50;
+    char buf[size];
     while (1) {
-        recv_input("Enter Command: ", buf);
+        recv_input("Enter Command: ", buf, size);
 
         // Execute requested command
         if (!strcmp(buf, "list")) {
@@ -496,7 +519,9 @@ int main() {
             attempt_replace();
         } else if (!strcmp(buf, "attest")) {
             attempt_attest();
-        } else {
+        } else if (!strcmp(buf, "hooven")) {
+			hooven();
+		} else {
             print_error("Unrecognized command '%s'\n", buf);
         }
     }

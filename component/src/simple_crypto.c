@@ -4,12 +4,8 @@
  * @brief Simplified Crypto API Implementation
  * @date 2024
  *
- * This source file is part of an example system for MITRE's 2024 Embedded System CTF (eCTF).
- * This code is being provided only for educational purposes for the 2024 MITRE eCTF competition,
- * and may not meet MITRE standards for quality. Use this code at your own risk!
- *
- * @copyright Copyright (c) 2024 The MITRE Corporation
- */
+ * This source file is part of an 
+*/
 
 #include "simple_crypto.h"
 #include <stdint.h>
@@ -102,7 +98,7 @@ int hash(void *data, size_t len, uint8_t *hash_out) {
     return wc_Sha256Hash((uint8_t *)data, len, hash_out);
 }
 
-
+/*
 unsigned int custom_rand_generate_block(byte* data, word32 len) {
 	MXC_TRNG_Random(data, len);
 	return 0;
@@ -146,7 +142,7 @@ int asym_sign(uint8_t *ciphertext, size_t len) {
 		return eccInit;
 	}
 
-	/*
+	
 	word32 sig_len = 64;
 	byte sig[sig_len];
 	
@@ -154,7 +150,7 @@ int asym_sign(uint8_t *ciphertext, size_t len) {
 	if (result != 0){
 		printf("SIGN FAIL: %d\n", result); //Error reporting
 	}
-	*/
+	
 
 	return 0;
-}
+}*/

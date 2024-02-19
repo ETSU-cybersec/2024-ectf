@@ -1,4 +1,5 @@
 import random
+import string
 
 def generate_random_key(length):
     return [random.randint(0, 9) for _ in range(length)]
@@ -14,6 +15,11 @@ def write_counter_to_file(value, name):
     with open('global_secrets.h', 'a') as file:
         file.write(f'#define {name} {value}\n')
 
+def write_magic ():
+    characters = 'ABCDEF0123456789'
+    value = ''.join(random.choice(characters) for _ in range(8))
+    with open('global_secrets.h', 'a') as file:
+        file.write(f'#define FLASH_MAGIC 0x{value}\n')
 if __name__ == "__main__":
     key_len = 32
     max_counter = 1000
@@ -30,3 +36,5 @@ if __name__ == "__main__":
 
     for counter in counters:    
         write_counter_to_file(random.randint(1, max_counter), counter)
+
+    write_magic()

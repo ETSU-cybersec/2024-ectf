@@ -68,10 +68,4 @@ int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintex
  * @return 0 on success, non-zero for other error
  */
 int hash(void *data, size_t len, uint8_t *hash_out);
-
-
-// implement asymmetric encryption 
-int asym_sign(uint8_t *ciphertext, size_t len);
-// implement asymmetric decryption 
-
-#endif // ECTF_CRYPTO_H
+#endif

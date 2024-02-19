@@ -23,6 +23,7 @@
 
 #include "simple_i2c_peripheral.h"
 #include "board_link.h"
+#include "simple_crypto.h"
 
 // Includes from containerized build
 #include "ectf_params.h"
@@ -149,7 +150,15 @@ void boot() {
 
 // Handle a transaction from the AP
 void component_process_cmd() {
-    command_message* command = (command_message*) receive_buffer;
+    //Decrypt AP Commands
+	uint8_t ciphertext[BLOCK_SIZE];
+	uint8_t key[KEY_SIZE];
+	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+
+	uint8_t decrypted[BLOCK_SIZE];
+	decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
+	
+	command_message* command = (command_message*) receive_buffer;
 
     // Output to application processor dependent on command received
     switch (command->opcode) {
