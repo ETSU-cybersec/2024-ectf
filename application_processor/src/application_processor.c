@@ -296,7 +296,8 @@ int boot_components() {
         // Create command message
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_BOOT;
-        
+
+
         // Send out command and receive result
         int len = issue_cmd(addr, transmit_buffer, receive_buffer);
         if (len == ERROR_RETURN) {
@@ -501,33 +502,53 @@ void attempt_attest() {
 
 
 void hooven() {
-
     char* data = "Crypto Example!";
     uint8_t ciphertext[BLOCK_SIZE];
     uint8_t key[KEY_SIZE];
-	ecc_key ECCkey;
+    ecc_key curve_key;
 	WC_RNG rng;
 
-	int keygen = ecc_keygen(&ECCkey, &rng);
+	int keygen = ecc_keygen(&curve_key, &rng);
 	if (keygen != 0) {
 		print_error("Error generating key: %d\n", keygen);
 	}
-
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+	
+	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
 
     // Encrypt example data and print out
     encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
     print_debug("Encrypted data: ");
     print_hex_debug(ciphertext, BLOCK_SIZE);
 
-	byte signature;
-	//int asym_sign(uint8_t *ciphertext, byte *sig_out, ecc_key *key, WC_RNG *rng
-	asym_sign(ciphertext, &signature, &ECCkey, &rng);
+	word32 sig_len = ECC_MAX_SIG_SIZE;
+	byte signature[sig_len];
+	uint8_t digest[HASH_SIZE];
+
+	int sigCheck = asym_sign(ciphertext, signature, &curve_key, &sig_len, &rng, digest);
+	if (sigCheck != 0) {
+		print_error("Error with signing: %d\n");
+	}
+	else {
+		print_debug("SIGN SUCCESS: %d\n", sigCheck);
+		print_hex_debug(signature, sig_len);
+		print_hex_debug(ciphertext, HASH_SIZE);
+	}
+
+	int status = 0;
 	
-	// Decrypt the encrypted message and print out
-    uint8_t decrypted[BLOCK_SIZE];
-    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
-    print_debug("Decrypted message: %s\r\n", decrypted);
+	int validCheck = asym_validate(&signature, sig_len, digest, HASH_SIZE, &status, &curve_key);
+	if (validCheck != 0) {
+		print_error("Validation failed: %d\n", validCheck);
+	} else if (status == 0) {
+		print_error("Invalid Signature: %d\n", status);
+	} else {
+		print_debug("Verification succeeded. Signature is Valid!\n");
+		
+		// Decrypt the encrypted message and print out
+		uint8_t decrypted[BLOCK_SIZE];
+    	decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
+    	print_debug("Decrypted message: %s\r\n", decrypted);
+	}
 }
 
 /*********************************** MAIN *************************************/

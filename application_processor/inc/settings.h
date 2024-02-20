@@ -62,9 +62,10 @@
 #define BLOCK_SIZE AES_BLOCK_SIZE
 #define KEY_SIZE 32
 #define HASH_SIZE SHA256_DIGEST_SIZE
+
 #define HAVE_ECC_VERIFY
-#define ECC_MIN_KEY_SZ 256
-#define ECC_KEY_CURVE ECC_SECP384R1
+#define HAVE_ECC256
+
 #undef WC_NO_HASHDRBG
 #define WC_NO_HASHDRBG
 
@@ -78,6 +79,9 @@ extern unsigned int rand_gen(void);
 #undef  CUSTOM_RAND_GENERATE_BLOCK
 #define CUSTOM_RAND_GENERATE_BLOCK  custom_rand_generate_block
 extern unsigned int custom_rand_generate_block(unsigned char* data, unsigned int len);
+
+#undef NO_RSA
+#define NO_RSA
 
 #undef WOLFSSL_SHA3
 #define WOLFSSL_SHA3
