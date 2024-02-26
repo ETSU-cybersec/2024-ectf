@@ -536,7 +536,7 @@ void hooven() {
 
 	int status = 0;
 	
-	int validCheck = asym_validate(&signature, sig_len, digest, HASH_SIZE, &status, &curve_key);
+	int validCheck = asym_validate(signature, sig_len, digest, HASH_SIZE, &status, &curve_key);
 	if (validCheck != 0) {
 		print_error("Validation failed: %d\n", validCheck);
 	} else if (status == 0) {
