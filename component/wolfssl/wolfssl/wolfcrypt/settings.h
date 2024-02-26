@@ -63,6 +63,7 @@
 #define KEY_SIZE 32
 #define HASH_SIZE SHA256_DIGEST_SIZE
 
+#define HAVE_ECC
 #define HAVE_ECC_VERIFY
 #define HAVE_ECC256
 
