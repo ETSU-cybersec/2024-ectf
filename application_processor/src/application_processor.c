@@ -116,7 +116,16 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
     //Encrypt send
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)buffer, BLOCK_SIZE, key, ciphertext);
-    
+    size_t plaintext_length;
+	decrypt_sym(ciphertext, BLOCK_SIZE, key, ciphertext, &plaintext_length);
+
+    // Print received data
+    printf("I sent (%d): ", BLOCK_SIZE);
+    for (int i = 0; i < plaintext_length; i++) {
+        printf("%c", ciphertext[i]);
+    }
+    printf("\n");
+
     return send_packet(address, KEY_SIZE * sizeof(uint8_t), ciphertext);
 }
 
@@ -136,9 +145,10 @@ int secure_receive(i2c_addr_t address, uint8_t* buffer) {
     
     // //Decrypt receive
 	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-	decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
+    size_t plaintext_length;
+	decrypt_sym(buffer, BLOCK_SIZE, key, buffer, &plaintext_length);
     
-    return sizeof(buffer);
+    return plaintext_length;
 }
 
 /**
@@ -206,7 +216,8 @@ int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
 
     // Decrypt receive
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    decrypt_sym(receive, BLOCK_SIZE, key, receive);
+    size_t plaintext_length;
+	decrypt_sym(receive, BLOCK_SIZE, key, receive, &plaintext_length);
 
     if (len == ERROR_RETURN) {
         return ERROR_RETURN;
@@ -358,7 +369,8 @@ void boot() {
 
     // Decrypt the encrypted message and print out
     uint8_t decrypted[BLOCK_SIZE];
-    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
+    size_t plaintext_length;
+    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted, &plaintext_length);
     print_debug("Decrypted message: %s\r\n", decrypted);
 
     // POST BOOT FUNCTIONALITY
@@ -382,7 +394,7 @@ void boot() {
         LED_Off(LED3);
         MXC_Delay(500000);
     }
-    uint8_t message[] = "hi";
+    uint8_t message[] = "hi, this is a really long string so i can test the length.";
     uint8_t len = sizeof(message) - 1; // Exclude null terminator
     
     secure_send(flash_status.component_ids[0], message, len);
@@ -505,14 +517,35 @@ void hooven() {
     char* data = "Crypto Example!";
     uint8_t ciphertext[BLOCK_SIZE];
     uint8_t key[KEY_SIZE];
+    byte publicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
+    byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
     ecc_key curve_key;
 	WC_RNG rng;
 
-	int keygen = ecc_keygen(&curve_key, &rng);
+	int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
 	if (keygen != 0) {
 		print_error("Error generating key: %d\n", keygen);
 	}
-	
+    print_error("Public Key: ");
+    for (int i = 0; i < 65; ++i) {
+        printf("%02X", publicKey[i]);
+    }
+    print_error("\n");
+    
+     // Print out provisioned component IDs
+    for (unsigned i = 0; i < flash_status.component_cnt; i++) {
+        secure_send(flash_status.component_ids[i], publicKey, sizeof(publicKey));
+    }
+
+    
+
+    print_error("Private Key: %d\n", privateKey); 	
+    print_error("Private Key: ");
+    for (int i = 0; i < 65; ++i) {
+        printf("%02X", privateKey[i]);
+    }
+    print_error("\n");
+
 	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
 
     // Encrypt example data and print out
@@ -536,7 +569,7 @@ void hooven() {
 
 	int status = 0;
 	
-	int validCheck = asym_validate(signature, sig_len, digest, HASH_SIZE, &status, &curve_key);
+	int validCheck = asym_validate(signature, sig_len, digest, HASH_SIZE, &status, &publicKey);
 	if (validCheck != 0) {
 		print_error("Validation failed: %d\n", validCheck);
 	} else if (status == 0) {
@@ -546,7 +579,9 @@ void hooven() {
 		
 		// Decrypt the encrypted message and print out
 		uint8_t decrypted[BLOCK_SIZE];
-    	decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
+        
+        size_t plaintext_length;
+    	decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted, &plaintext_length);
     	print_debug("Decrypted message: %s\r\n", decrypted);
 	}
 }
@@ -562,12 +597,35 @@ int main() {
     // Print the component IDs to be helpful
     // Your design does not need to do this
     print_info("Application Processor Started\n");
+    
+    bool keysExchanged = false;
 
     // Handle commands forever
     size_t size = 50;
     char buf[size];
     while (1) {
         recv_input("Enter Command: ", buf, size);
+
+        if (!keysExchanged) {
+            // Print out provisioned component IDs
+            for (unsigned i = 0; i < flash_status.component_cnt; i++) {
+                uint8_t message[] = "hi, this is a really long string so i can test the length.";
+                uint8_t len = sizeof(message) - 1; // Exclude null terminator
+                
+                secure_send(flash_status.component_ids[0], message, len);
+                
+                uint8_t receive_buffer[50];
+                int received_length = secure_receive(flash_status.component_ids[0], receive_buffer);
+                
+                // Print received data
+                printf("Received message: ");
+                for (int i = 0; i < received_length; i++) {
+                    printf("%c", receive_buffer[i]);
+                }
+                printf("\n");
+            }
+            keysExchanged = true;
+        }
 
         // Execute requested command
         if (!strcmp(buf, "list")) {

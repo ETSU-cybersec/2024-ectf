@@ -72,7 +72,7 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
  *
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
-int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext) {
+int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext, size_t *plaintext_length) {
     Aes ctx; // Context for decryption
     int result; // Library result
 
@@ -85,11 +85,17 @@ int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintex
     if (result != 0)
         return result; // Report error
 
+    size_t decrypted_length = 0;
     // Decrypt each block
     for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
         result = wc_AesDecryptDirect(&ctx, plaintext + i, ciphertext + i);
         if (result != 0)
             return result; // Report error
+        decrypted_length += BLOCK_SIZE;
+    }
+    *plaintext_length = 0;
+    while (plaintext[*plaintext_length] != '\0') {
+        (*plaintext_length)++;
     }
     return 0;
 }
@@ -164,7 +170,7 @@ unsigned int rand_gen(void) {
  *
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
-int ecc_keygen(ecc_key *key, WC_RNG *rng) {
+int ecc_keygen(ecc_key *key, WC_RNG *rng, ecc_key *publicKeyCom, byte *privateKey) {
 	//Initialize the Hardware RNG
 	int boardInit = MXC_TRNG_Init();
 	if (boardInit != 0) {
@@ -189,8 +195,39 @@ int ecc_keygen(ecc_key *key, WC_RNG *rng) {
 		return makeKey; //Report error
 	}
 	
+	/* Extract the public key */
+    //byte publicKey[65]; /* Public key size for secp256r1 */
+    word32 eccPubSize = ECC_BUFSIZE;
+	byte *publicKey[ECC_BUFSIZE];
+    int pubkey = wc_ecc_export_x963(key, publicKey, &eccPubSize);
+	printf("Public key size: %d\n", eccPubSize);
+    if (pubkey != 0) {
+        printf("wc_ecc_export_x963 failed for public key: %d\n", pubkey);
+        return pubkey;
+    }
+	
+	//ecc_key publicKeyCom;
+    /* Import the public key */
+    int publickeyimport = wc_ecc_import_x963(publicKey, eccPubSize, publicKeyCom);
+    if (publickeyimport != 0) {
+        printf("ECC public key import failed! %d\n", publickeyimport);
+    }
+
+
+    /* Extract the private key */
+    word32 eccPrivSize = ECC_BUFSIZE;
+    int privkey = wc_ecc_export_private_only(key, privateKey, &eccPrivSize);
+	printf("Private key size: %d\n", eccPrivSize);
+    if (privkey != 0) {
+        printf("wc_ecc_export_x963 failed for public key: %d\n", privkey);
+         return privkey;
+    }
+
 	return 0;
 }
+
+
+
 
 /** @brief Cryptographically signs an encrypted ciphertext 
  * 		   uses WolfSSL's WolfCrypt library for Hashing/Signing

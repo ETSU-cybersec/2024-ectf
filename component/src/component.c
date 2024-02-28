@@ -121,7 +121,8 @@ int secure_receive(uint8_t* buffer) {
     wait_and_receive_packet(buffer);
     //Decrypt buffer
 	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-	decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
+    size_t plaintext_length;
+    decrypt_sym(buffer, BLOCK_SIZE, key, buffer, &plaintext_length);
     
     return sizeof(buffer) / sizeof(buffer[0]);
 }
@@ -178,7 +179,8 @@ void boot() {
 void component_process_cmd() {
     // //Decrypt AP Commands
 	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-	decrypt_sym(receive_buffer, BLOCK_SIZE, key, decrypted);
+    size_t plaintext_length;
+	decrypt_sym(receive_buffer, BLOCK_SIZE, key, decrypted, &plaintext_length);
 
     //send_packet_and_ack(sizeof(decrypted), decrypted);
 	command_message* command = (command_message*) decrypted;
@@ -262,7 +264,27 @@ int main(void) {
     
     LED_On(LED2);
 
+    bool keysExchanged = false;
+
     while (1) {
+        if (!keysExchanged) {
+            uint8_t receive_buffer[50];
+            int received_length = secure_receive(receive_buffer);
+            // Print received data
+            printf("Received message: ");
+            for (int i = 0; i < received_length; i++) {
+                printf("%c", receive_buffer[i]);
+            }
+            printf("\n");
+            
+            uint8_t message[] = "hey there!";
+            uint8_t len = sizeof(message) - 1; // Exclude null terminator
+            
+            secure_send(message, len);    
+
+            keysExchanged = true;
+        }
+
         wait_and_receive_packet(receive_buffer);
         component_process_cmd();
     }
