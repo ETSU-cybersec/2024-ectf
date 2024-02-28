@@ -1,6 +1,6 @@
 /**
  * @file "simple_i2c_controller.c"
- * @author Frederich Stine 
+ * @author Frederich Stine
  * @brief Simple Synchronous I2C Controller Implementation
  * @date 2024
  *
@@ -26,7 +26,7 @@ static void I2C_Handler(void) { MXC_I2C_AsyncHandler(I2C_INTERFACE); }
 /******************************** FUNCTION DEFINITIONS ********************************/
 /**
  * @brief Initialize the I2C Connection
- * 
+ *
  * Initialize the I2C by enabling the module, setting the correct
  * frequency, and enabling the interrupt to our I2C_Handler
 */
@@ -41,7 +41,7 @@ int i2c_simple_controller_init(void) {
     }
     // Set frequency to frequency macro
     MXC_I2C_SetFrequency(I2C_INTERFACE, I2C_FREQ);
-    
+
     // Set up interrupt
     MXC_NVIC_SetVector(MXC_I2C_GET_IRQ(MXC_I2C_GET_IDX(I2C_INTERFACE)), I2C_Handler);
     NVIC_EnableIRQ(MXC_I2C_GET_IRQ(MXC_I2C_GET_IDX(I2C_INTERFACE)));
@@ -51,9 +51,9 @@ int i2c_simple_controller_init(void) {
 
 /**
  * @brief Read RECEIVE_DONE reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
- * 
+ *
  * @return int: RECEIVE_DONE value, negative if error
  *
  * Read the RECEIVE_DONE for an I2C peripheral
@@ -65,13 +65,13 @@ int i2c_simple_read_receive_done(i2c_addr_t addr) {
 
 /**
  * @brief Read RECEIVE_LEN reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
- * 
+ *
  * @return uint8_t: RECEIVE_LEN value, negative if error
  *
  * Read the RECEIVE_LEN for an I2C peripheral
- * and return the value 
+ * and return the value
 */
 int i2c_simple_read_receive_len(i2c_addr_t addr) {
     return i2c_simple_read_status_generic(addr, RECEIVE_LEN);
@@ -79,9 +79,9 @@ int i2c_simple_read_receive_len(i2c_addr_t addr) {
 
 /**
  * @brief Read TRANSMIT_DONE reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
- * 
+ *
  * @return int: TRANSMIT_DONE value, negative if error
  *
  * Read the TRANSMIT_DONE for an I2C peripheral
@@ -107,12 +107,12 @@ int i2c_simple_read_transmit_len(i2c_addr_t addr) {
 
 /**
  * @brief Write RECEIVE_DONE reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
  * @param done: uint8_t, RECEIVE_DONE value
- * 
+ *
  * @return int: negative if error, 0 if success
- * 
+ *
  * Write the RECEIVE_DONE reg for an I2C peripheral to the 
  * specified value 
 */
@@ -122,12 +122,12 @@ int i2c_simple_write_receive_done(i2c_addr_t addr, bool done) {
 
 /**
  * @brief Write RECEIVE_LEN reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
  * @param len: uint8_t, RECEIVE_LEN value
- * 
+ *
  * @return int: negative if error, 0 if success
- * 
+ *
  * Write the RECEIVE_LEN reg for an I2C peripheral to the 
  * specified value
 */
@@ -137,10 +137,10 @@ int i2c_simple_write_receive_len(i2c_addr_t addr, uint8_t len) {
 
 /**
  * @brief Write TRANSMIT_DONE reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
  * @param done: bool, TRANSMIT_DONE value
- * 
+ *
  * @return int: negative if error, 0 if success
  *
  * Write the TRANSMIT_DONE reg for an I2C peripheral to the 
@@ -152,10 +152,10 @@ int i2c_simple_write_transmit_done(i2c_addr_t addr, bool done) {
 
 /**
  * @brief Write TRANSMIT_LEN reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
  * @param len: uint8_t, TRANSMIT_LEN value
- * 
+ *
  * @return int: negative if error, 0 if success
  *
  * Write the TRANSMIT_LEN reg for an I2C peripheral to the 
@@ -167,14 +167,14 @@ int i2c_simple_write_transmit_len(i2c_addr_t addr, uint8_t len) {
 
 /**
  * @brief Read generic data reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
  * @param reg: ECTF_I2C_REGS, register to read from
  * @param len: uint8_t, length of data to read
  * @param buf: uint8_t*, buffer to read data into
- * 
+ *
  * @return int: negative if error, 0 if success
- * 
+ *
  * Read any register larger than 1B in size
  * Can be used to read the PARAMS or RESULT register
 */
@@ -195,14 +195,14 @@ int i2c_simple_read_data_generic(i2c_addr_t addr, ECTF_I2C_REGS reg, uint8_t len
 
 /**
  * @brief Write generic data reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
  * @param reg: ECTF_I2C_REGS, register to write to
  * @param len: uint8_t, length of data to write
  * @param buf: uint8_t*, buffer to write data from
- * 
+ *
  * @return int: negative if error, 0 if success
- * 
+ *
  * Write any register larger than 1B in size
  * Can be used to write the PARAMS or RESULT register
 */
@@ -210,7 +210,7 @@ int i2c_simple_write_data_generic(i2c_addr_t addr, ECTF_I2C_REGS reg, uint8_t le
     uint8_t packet[257];
     packet[0] = reg;
     memcpy(&packet[1], buf, len);
-    
+
     mxc_i2c_req_t request;
     request.i2c = I2C_INTERFACE;
     request.addr = addr;
@@ -226,12 +226,12 @@ int i2c_simple_write_data_generic(i2c_addr_t addr, ECTF_I2C_REGS reg, uint8_t le
 
 /**
  * @brief Read generic status reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
  * @param reg: ECTF_I2C_REGS, register to read to
  *
  * @return int: value returned from device, negative if error
- * 
+ *
  * Read any register that is 1B in size
 */
 int i2c_simple_read_status_generic(i2c_addr_t addr, ECTF_I2C_REGS reg) {
@@ -256,11 +256,11 @@ int i2c_simple_read_status_generic(i2c_addr_t addr, ECTF_I2C_REGS reg) {
 
 /**
  * @brief Write generic status reg
- * 
+ *
  * @param addr: i2c_addr_t, address of I2C device
  * @param reg: ECTF_I2C_REGS, register to write to
  * @param value: uint8_t, value to write to register
- * 
+ *
  * @return int: negative if error, 0 if success
  *
  * Write any register that is 1B in size
@@ -269,7 +269,7 @@ int i2c_simple_write_status_generic(i2c_addr_t addr, ECTF_I2C_REGS reg, uint8_t 
     uint8_t packet[2];
     packet[0] = (uint8_t) reg;
     packet[1] = value;
-    
+
     mxc_i2c_req_t request;
     request.i2c = I2C_INTERFACE;
     request.addr = addr;

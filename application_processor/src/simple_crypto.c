@@ -129,21 +129,21 @@ int hash(const byte *data, size_t len, uint8_t *hash_out) {
 /** @brief   Get a random number of length len
  *
  * @param   data    Pointer to a location to store the number
- * 
+ *
  * @param   len     Length of random number in bytes
  *
  * @MXC_TRNG return  Success/Fail, see \ref MXC_Error_Codes for a list of return codes.*
- * 
- * @custom_rand_generate_block return 0 for Sucess 
- * 
+ *
+ * @custom_rand_generate_block return 0 for Sucess
+ *
  * MXC_TRNG_Random - Copyright (C) 2023 Maxim Integrated Products, Inc., All Rights Reserved.
  */
 unsigned int custom_rand_generate_block(byte* data, word32 len) {
-	int ret = MXC_TRNG_Random(data, len);
-	if (ret != 0) {
-		return ret;
-	}
-	return 0;
+    int ret = MXC_TRNG_Random(data, len);
+    if (ret != 0) {
+        return ret;
+    }
+    return 0;
 }
 
 /**@brief   Get a random number from MXC TRNG to seed WolfCrypt RNG
@@ -153,7 +153,7 @@ unsigned int custom_rand_generate_block(byte* data, word32 len) {
  * MXC_TRNG_RandomInt - Copyright (C) 2023 Maxim Integrated Products, Inc., All Rights Reserved.
  */
 unsigned int rand_gen(void) {
-	return MXC_TRNG_RandomInt();
+    return MXC_TRNG_RandomInt();
 }
 
 /** @brief 	Initializes then generate and store key values in the ECC_Key struct
@@ -165,34 +165,34 @@ unsigned int rand_gen(void) {
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
 int ecc_keygen(ecc_key *key, WC_RNG *rng) {
-	//Initialize the Hardware RNG
-	int boardInit = MXC_TRNG_Init();
-	if (boardInit != 0) {
-		return boardInit; //Report error
-	}
+    //Initialize the Hardware RNG
+    int boardInit = MXC_TRNG_Init();
+    if (boardInit != 0) {
+        return boardInit; //Report error
+    }
 
-	//Initialize WolfSSL WC_RNG struct
-	int rngInit = wc_InitRng(rng);
-	if (rngInit != 0) {
-		return rngInit; //Report error
-	}
+    //Initialize WolfSSL WC_RNG struct
+    int rngInit = wc_InitRng(rng);
+    if (rngInit != 0) {
+        return rngInit; //Report error
+    }
 
-	//Initialize ECC Key struct
-	int eccInit = wc_ecc_init(key);
-	if (eccInit != 0) {
-		return eccInit; //Report error
-	}
+    //Initialize ECC Key struct
+    int eccInit = wc_ecc_init(key);
+    if (eccInit != 0) {
+        return eccInit; //Report error
+    }
 
-	//Generate Key
-	int makeKey = wc_ecc_make_key(rng, KEY_SIZE, key);
-	if(makeKey != 0) {
-		return makeKey; //Report error
-	}
-	
-	return 0;
+    //Generate Key
+    int makeKey = wc_ecc_make_key(rng, KEY_SIZE, key);
+    if(makeKey != 0) {
+        return makeKey; //Report error
+    }
+
+    return 0;
 }
 
-/** @brief Cryptographically signs an encrypted ciphertext 
+/** @brief Cryptographically signs an encrypted ciphertext
  * 		   uses WolfSSL's WolfCrypt library for Hashing/Signing
  * 		   and MAX78000fthr's on board hardware for RNG
  *
@@ -214,16 +214,16 @@ int ecc_keygen(ecc_key *key, WC_RNG *rng) {
  */
 int asym_sign(uint8_t *ciphertext, byte *signature, ecc_key *key, word32 *sig_len, WC_RNG *rng, uint8_t *digest) {
 
-	//Hash the encrypted command
-	hash(ciphertext, BLOCK_SIZE, digest);
+    //Hash the encrypted command
+    hash(ciphertext, BLOCK_SIZE, digest);
 
-	//Sign the hashed message, and store signature in signature
-	int result = wc_ecc_sign_hash(digest, HASH_SIZE, signature, sig_len, rng, key);
-	if (result != 0){
-		return result; //Report error
-	}
+    //Sign the hashed message, and store signature in signature
+    int result = wc_ecc_sign_hash(digest, HASH_SIZE, signature, sig_len, rng, key);
+    if (result != 0){
+        return result; //Report error
+    }
 
-	return 0;
+    return 0;
 }
 
 /* @brief Verifies an ECC signature of a hashed ciphertext for authentication purposes
@@ -246,12 +246,12 @@ int asym_sign(uint8_t *ciphertext, byte *signature, ecc_key *key, word32 *sig_le
 
 int asym_validate(const byte *signature, word32 sig_len, const byte *hash, word32 hash_len, int *status, ecc_key *key) {
 
-	//Validate Signature
-	int valid = wc_ecc_verify_hash(signature, sig_len, hash, hash_len, status, key);
+    //Validate Signature
+    int valid = wc_ecc_verify_hash(signature, sig_len, hash, hash_len, status, key);
 
-	if (valid != 0) {
-		return valid; //Report error
-	}
+    if (valid != 0) {
+        return valid; //Report error
+    }
 
-	return 0;
+    return 0;
 }

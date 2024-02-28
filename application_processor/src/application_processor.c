@@ -103,11 +103,11 @@ uint8_t decrypted[BLOCK_SIZE];
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
  * @brief Secure Send 
- * 
+ *
  * @param address: i2c_addr_t, I2C address of recipient
  * @param buffer: uint8_t*, pointer to data to be send
- * @param len: uint8_t, size of data to be sent 
- * 
+ * @param len: uint8_t, size of data to be sent
+ *
  * Securely send data over I2C. This function is utilized in POST_BOOT functionality.
  * This function must be implemented by your team to align with the security requirements.
 
@@ -116,7 +116,7 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
     //Encrypt send
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)buffer, BLOCK_SIZE, key, ciphertext);
-    
+
     return send_packet(address, KEY_SIZE * sizeof(uint8_t), ciphertext);
 }
 
@@ -133,21 +133,21 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
     poll_and_receive_packet(address, buffer);
-    
+
     // //Decrypt receive
 	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
 	decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
-    
+
     return sizeof(buffer);
 }
 
 /**
  * @brief Get Provisioned IDs
- * 
+ *
  * @param uint32_t* buffer
- * 
+ *
  * @return int: number of ids
- * 
+ *
  * Return the currently provisioned IDs and the number of provisioned IDs
  * for the current AP. This functionality is utilized in POST_BOOT functionality.
  * This function must be implemented by your team.
@@ -184,7 +184,7 @@ void init() {
 
         flash_simple_write(FLASH_ADDR, (uint32_t*)&flash_status, sizeof(flash_entry));
     }
-    
+
     // Initialize board link interface
     board_link_init();
 }
@@ -194,13 +194,13 @@ int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
     //Encrypt transmit
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)transmit, BLOCK_SIZE, key, ciphertext);
-    
+
     // Send message
     int result = send_packet(addr, KEY_SIZE * sizeof(uint8_t), ciphertext);
     if (result == ERROR_RETURN) {
         return ERROR_RETURN;
     }
-    
+
     // Receive message
     int len = poll_and_receive_packet(addr, receive);
 
@@ -265,7 +265,7 @@ int validate_components() {
         // Create command message
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_VALIDATE;
-        
+
         // Send out command and receive result
         int len = issue_cmd(addr, transmit_buffer, receive_buffer);
         if (len == ERROR_RETURN) {
@@ -292,7 +292,7 @@ int boot_components() {
     for (unsigned i = 0; i < flash_status.component_cnt; i++) {
         // Set the I2C address of the component
         i2c_addr_t addr = component_id_to_i2c_addr(flash_status.component_ids[i]);
-        
+ 
         // Create command message
         command_message* command = (command_message*) transmit_buffer;
         command->opcode = COMPONENT_CMD_BOOT;
@@ -384,12 +384,12 @@ void boot() {
     }
     uint8_t message[] = "hi";
     uint8_t len = sizeof(message) - 1; // Exclude null terminator
-    
+
     secure_send(flash_status.component_ids[0], message, len);
 
     uint8_t receive_buffer[50];
     int received_length = secure_receive(flash_status.component_ids[0], receive_buffer);
-    
+
     // Print received data
     printf("Received message: ");
     for (int i = 0; i <= received_length; i++) {
@@ -506,49 +506,48 @@ void hooven() {
     uint8_t ciphertext[BLOCK_SIZE];
     uint8_t key[KEY_SIZE];
     ecc_key curve_key;
-	WC_RNG rng;
+    WC_RNG rng;
 
-	int keygen = ecc_keygen(&curve_key, &rng);
-	if (keygen != 0) {
-		print_error("Error generating key: %d\n", keygen);
-	}
-	
-	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    int keygen = ecc_keygen(&curve_key, &rng);
+    if (keygen != 0) {
+        print_error("Error generating key: %d\n", keygen);
+    }
+
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
 
     // Encrypt example data and print out
     encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
     print_debug("Encrypted data: ");
     print_hex_debug(ciphertext, BLOCK_SIZE);
 
-	word32 sig_len = ECC_MAX_SIG_SIZE;
-	byte signature[sig_len];
-	uint8_t digest[HASH_SIZE];
+    word32 sig_len = ECC_MAX_SIG_SIZE;
+    byte signature[sig_len];
+    uint8_t digest[HASH_SIZE];
 
-	int sigCheck = asym_sign(ciphertext, signature, &curve_key, &sig_len, &rng, digest);
-	if (sigCheck != 0) {
-		print_error("Error with signing: %d\n");
-	}
-	else {
-		print_debug("SIGN SUCCESS: %d\n", sigCheck);
-		print_hex_debug(signature, sig_len);
-		print_hex_debug(ciphertext, HASH_SIZE);
-	}
+    int sigCheck = asym_sign(ciphertext, signature, &curve_key, &sig_len, &rng, digest);
+    if (sigCheck != 0) {
+        print_error("Error with signing: %d\n");
+    }
+    else {
+        print_debug("SIGN SUCCESS: %d\n", sigCheck);
+        print_hex_debug(signature, sig_len);
+        print_hex_debug(ciphertext, HASH_SIZE);
+    }
 
-	int status = 0;
-	
-	int validCheck = asym_validate(signature, sig_len, digest, HASH_SIZE, &status, &curve_key);
-	if (validCheck != 0) {
-		print_error("Validation failed: %d\n", validCheck);
-	} else if (status == 0) {
-		print_error("Invalid Signature: %d\n", status);
-	} else {
-		print_debug("Verification succeeded. Signature is Valid!\n");
-		
-		// Decrypt the encrypted message and print out
-		uint8_t decrypted[BLOCK_SIZE];
-    	decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
-    	print_debug("Decrypted message: %s\r\n", decrypted);
-	}
+    int status = 0;
+    int validCheck = asym_validate(signature, sig_len, digest, HASH_SIZE, &status, &curve_key);
+    if (validCheck != 0) {
+        print_error("Validation failed: %d\n", validCheck);
+    } else if (status == 0) {
+        print_error("Invalid Signature: %d\n", status);
+    } else {
+        print_debug("Verification succeeded. Signature is Valid!\n");
+
+        // Decrypt the encrypted message and print out
+        uint8_t decrypted[BLOCK_SIZE];
+        decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted);
+        print_debug("Decrypted message: %s\r\n", decrypted);
+    }
 }
 
 /*********************************** MAIN *************************************/
@@ -579,8 +578,8 @@ int main() {
         } else if (!strcmp(buf, "attest")) {
             attempt_attest();
         } else if (!strcmp(buf, "hooven")) {
-			hooven();
-		} else {
+            hooven();
+        } else {
             print_error("Unrecognized command '%s'\n", buf);
         }
     }

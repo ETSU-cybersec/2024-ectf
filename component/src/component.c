@@ -91,11 +91,11 @@ uint8_t decrypted[BLOCK_SIZE];
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
- * @brief Secure Send 
- * 
+ * @brief Secure Send
+ *
  * @param buffer: uint8_t*, pointer to data to be send
- * @param len: uint8_t, size of data to be sent 
- * 
+ * @param len: uint8_t, size of data to be sent
+ *
  * Securely send data over I2C. This function is utilized in POST_BOOT functionality.
  * This function must be implemented by your team to align with the security requirements.
 */
@@ -103,8 +103,8 @@ void secure_send(uint8_t* buffer, uint8_t len) {
     //Encrypt send
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)buffer, BLOCK_SIZE, key, ciphertext);
-    
-    send_packet_and_ack(KEY_SIZE * sizeof(uint8_t), ciphertext); 
+
+    send_packet_and_ack(KEY_SIZE * sizeof(uint8_t), ciphertext);
 }
 
 /**
@@ -120,9 +120,9 @@ void secure_send(uint8_t* buffer, uint8_t len) {
 int secure_receive(uint8_t* buffer) {
     wait_and_receive_packet(buffer);
     //Decrypt buffer
-	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-	decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
-    
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
+
     return sizeof(buffer) / sizeof(buffer[0]);
 }
 
@@ -160,7 +160,7 @@ void boot() {
 
     uint8_t receive_buffer[50];
     int received_length = secure_receive(receive_buffer);
-    
+
     // Print received data
     printf("Received message: ");
     for (int i = 0; i <= received_length; i++) {
@@ -207,7 +207,7 @@ void process_boot() {
     // respond with the boot message
     uint8_t len = strlen(COMPONENT_BOOT_MSG) + 1;
     memcpy((void*)transmit_buffer, COMPONENT_BOOT_MSG, len);
-    
+
     //Encrypt transmit
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
@@ -224,7 +224,7 @@ void process_scan() {
     //Encrypt transmit
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
-    
+ 
     send_packet_and_ack(sizeof(ciphertext), ciphertext);
 }
 
@@ -252,14 +252,14 @@ void process_attest() {
 
 int main(void) {
     printf("Component Started\n");
-    
+ 
     // Enable Global Interrupts
     __enable_irq();
-    
+ 
     // Initialize Component
     i2c_addr_t addr = component_id_to_i2c_addr(COMPONENT_ID);
     board_link_init(addr);
-    
+ 
     LED_On(LED2);
 
     while (1) {

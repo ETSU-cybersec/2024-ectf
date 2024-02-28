@@ -1,7 +1,7 @@
 /**
  * @file host_messaging.c
  * @author Frederich Stine
- * @brief eCTF Host Messaging Implementation 
+ * @brief eCTF Host Messaging Implementation
  * @date 2024
  *
  * This source file is part of an example system for MITRE's 2024 Embedded System CTF (eCTF).

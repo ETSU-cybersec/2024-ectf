@@ -129,13 +129,13 @@ int hash(const byte *data, size_t len, uint8_t *hash_out) {
 /** @brief   Get a random number of length len
  *
  * @param   data    Pointer to a location to store the number
- * 
+ *
  * @param   len     Length of random number in bytes
  *
  * @MXC_TRNG return  Success/Fail, see \ref MXC_Error_Codes for a list of return codes.*
- * 
+ *
  * @custom_rand_generate_block return 0 for Sucess 
- * 
+ *
  * MXC_TRNG_Random - Copyright (C) 2023 Maxim Integrated Products, Inc., All Rights Reserved.
  */
 unsigned int custom_rand_generate_block(byte* data, word32 len) {
