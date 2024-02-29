@@ -209,11 +209,7 @@ void process_boot() {
     uint8_t len = strlen(COMPONENT_BOOT_MSG) + 1;
     memcpy((void*)transmit_buffer, COMPONENT_BOOT_MSG, len);
     
-    //Encrypt transmit
-    // memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    // encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
-
-    // send_packet_and_ack(sizeof(ciphertext), ciphertext);
+    //Encrypt and send
     secure_send(transmit_buffer, len);
 
     // Call the boot function
