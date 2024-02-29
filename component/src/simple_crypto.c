@@ -48,7 +48,7 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
 
 
     // Encrypt each block
-    for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
+    for (int i = 0; i < len; i += BLOCK_SIZE) {
         result = wc_AesEncryptDirect(&ctx, ciphertext + i, plaintext + i);
         if (result != 0)
             return result; // Report error
@@ -85,18 +85,23 @@ int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintex
     if (result != 0)
         return result; // Report error
 
-    size_t decrypted_length = 0;
     // Decrypt each block
-    for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
+    for (int i = 0; i < len; i += BLOCK_SIZE) {
         result = wc_AesDecryptDirect(&ctx, plaintext + i, ciphertext + i);
         if (result != 0)
             return result; // Report error
-        decrypted_length += BLOCK_SIZE;
     }
-    *plaintext_length = 0;
-    while (plaintext[*plaintext_length] != '\0') {
-        (*plaintext_length)++;
+
+    // Remove padding
+    size_t padding = 0;
+    for (int i = len - 1; i >= 0; i--) {
+        if (plaintext[i] == PADDING_CHAR)
+            padding++;
+        else
+            break;
     }
+    *plaintext_length = len - padding;
+
     return 0;
 }
 

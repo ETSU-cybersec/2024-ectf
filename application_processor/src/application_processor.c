@@ -99,6 +99,9 @@ flash_entry flash_status;
 uint8_t ciphertext[BLOCK_SIZE];
 uint8_t key[KEY_SIZE];
 uint8_t decrypted[BLOCK_SIZE];
+byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
+byte publicKeys[ECC_BUFSIZE][COMPONENT_CNT]; /* Public key size for secp256r1 */
+size_t secure_msg_size = BLOCK_SIZE * 4;
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
@@ -113,21 +116,26 @@ uint8_t decrypted[BLOCK_SIZE];
 
 */
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    //Encrypt send
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    encrypt_sym((uint8_t*)buffer, BLOCK_SIZE, key, ciphertext);
-    size_t plaintext_length;
-	decrypt_sym(ciphertext, BLOCK_SIZE, key, ciphertext, &plaintext_length);
+    uint8_t padded_buffer[secure_msg_size];
+    uint8_t ciph[secure_msg_size];
 
-    // Print received data
-    printf("I sent (%d): ", BLOCK_SIZE);
-    for (int i = 0; i < plaintext_length; i++) {
-        printf("%c", ciphertext[i]);
+    // Copy the original plaintext to the padded buffer
+    memcpy(padded_buffer, buffer, len);
+
+    // Add padding bytes with the chosen character
+    for (int i = len; i < secure_msg_size; i++) {
+        padded_buffer[i] = PADDING_CHAR;
     }
-    printf("\n");
 
-    return send_packet(address, KEY_SIZE * sizeof(uint8_t), ciphertext);
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
+
+    // Send the encrypted data
+    return send_packet(address, secure_msg_size, ciph);
 }
+
+
+
 
 /**
  * @brief Secure Receive
@@ -146,7 +154,7 @@ int secure_receive(i2c_addr_t address, uint8_t* buffer) {
     // //Decrypt receive
 	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     size_t plaintext_length;
-	decrypt_sym(buffer, BLOCK_SIZE, key, buffer, &plaintext_length);
+    decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
     
     return plaintext_length;
 }
@@ -211,13 +219,8 @@ int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
         return ERROR_RETURN;
     }
     
-    // Receive message
-    int len = poll_and_receive_packet(addr, receive);
+    int len = secure_receive(addr, receive);
 
-    // Decrypt receive
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    size_t plaintext_length;
-	decrypt_sym(receive, BLOCK_SIZE, key, receive, &plaintext_length);
 
     if (len == ERROR_RETURN) {
         return ERROR_RETURN;
@@ -394,21 +397,6 @@ void boot() {
         LED_Off(LED3);
         MXC_Delay(500000);
     }
-    uint8_t message[] = "hi, this is a really long string so i can test the length.";
-    uint8_t len = sizeof(message) - 1; // Exclude null terminator
-    
-    secure_send(flash_status.component_ids[0], message, len);
-
-    uint8_t receive_buffer[50];
-    int received_length = secure_receive(flash_status.component_ids[0], receive_buffer);
-    
-    // Print received data
-    printf("Received message: ");
-    for (int i = 0; i <= received_length; i++) {
-        printf("%c", receive_buffer[i]);
-    }
-    printf("\n");
-
     #endif
 }
 
@@ -586,12 +574,23 @@ void hooven() {
 	}
 }
 
+void generate_keys(byte* publicKey) {
+    ecc_key curve_key;
+    WC_RNG rng;
+
+	int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
+	if (keygen != 0) {
+		print_error("Error generating key: %d\n", keygen);
+	}
+}
+
 /*********************************** MAIN *************************************/
 
 int main() {
     // Initialize board
     init();
-
+    byte publicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
+    // generate_keys(&publicKey);
     // register components
 
     // Print the component IDs to be helpful
@@ -614,7 +613,7 @@ int main() {
                 
                 secure_send(flash_status.component_ids[0], message, len);
                 
-                uint8_t receive_buffer[50];
+                uint8_t receive_buffer[secure_msg_size];
                 int received_length = secure_receive(flash_status.component_ids[0], receive_buffer);
                 
                 // Print received data

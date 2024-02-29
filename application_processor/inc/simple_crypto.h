@@ -26,6 +26,7 @@
 #define BLOCK_SIZE AES_BLOCK_SIZE
 #define KEY_SIZE 32
 #define HASH_SIZE SHA256_DIGEST_SIZE
+#define PADDING_CHAR '\0'
 
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
