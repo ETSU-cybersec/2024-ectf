@@ -102,7 +102,7 @@ uint8_t decrypted[BLOCK_SIZE];
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
- * @brief Secure Send 
+ * @brief Secure Send
  *
  * @param address: i2c_addr_t, I2C address of recipient
  * @param buffer: uint8_t*, pointer to data to be send
@@ -122,21 +122,21 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
 
 /**
  * @brief Secure Receive
- * 
+ *
  * @param address: i2c_addr_t, I2C address of sender
  * @param buffer: uint8_t*, pointer to buffer to receive data to
- * 
+ *
  * @return int: number of bytes received, negative if error
- * 
+ *
  * Securely receive data over I2C. This function is utilized in POST_BOOT functionality.
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
     poll_and_receive_packet(address, buffer);
 
-    // //Decrypt receive
-	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-	decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
+    // Decrypt receive
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
 
     return sizeof(buffer);
 }
@@ -163,7 +163,7 @@ int get_provisioned_ids(uint32_t* buffer) {
 // This must be called on startup to initialize the flash and i2c interfaces
 void init() {
 
-    // Enable global interrupts    
+    // Enable global interrupts
     __enable_irq();
 
     // Setup Flash
