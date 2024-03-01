@@ -116,6 +116,8 @@ size_t secure_msg_size = BLOCK_SIZE * 4;
 
 */
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
+    // multiplex into structure
+    
     uint8_t padded_buffer[secure_msg_size];
     uint8_t ciph[secure_msg_size];
 
@@ -209,18 +211,13 @@ void init() {
 
 // Send a command to a component and receive the result
 int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
-    //Encrypt transmit
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    encrypt_sym((uint8_t*)transmit, BLOCK_SIZE, key, ciphertext);
-    
-    // Send message
-    int result = send_packet(addr, KEY_SIZE * sizeof(uint8_t), ciphertext);
+    // Encrypt and send message
+    int result = secure_send(addr, transmit, secure_msg_size);
     if (result == ERROR_RETURN) {
         return ERROR_RETURN;
     }
     
     int len = secure_receive(addr, receive);
-
 
     if (len == ERROR_RETURN) {
         return ERROR_RETURN;

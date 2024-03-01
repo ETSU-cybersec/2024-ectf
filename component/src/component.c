@@ -176,13 +176,7 @@ void boot() {
 
 // Handle a transaction from the AP
 void component_process_cmd() {
-    // //Decrypt AP Commands
-	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    size_t plaintext_length;
-	decrypt_sym(receive_buffer, BLOCK_SIZE, key, decrypted, &plaintext_length);
-
-    //send_packet_and_ack(sizeof(decrypted), decrypted);
-	command_message* command = (command_message*) decrypted;
+    command_message* command = (command_message*) receive_buffer;
     // Output to application processor dependent on command received
     switch (command->opcode) {
     case COMPONENT_CMD_BOOT:
@@ -270,12 +264,12 @@ int main(void) {
 
     while (1) {
         if (!keysExchanged) {
-            uint8_t receive_buffer[secure_msg_size];
-            int received_length = secure_receive(receive_buffer);
+            uint8_t recv_buffer[secure_msg_size];
+            int received_length = secure_receive(recv_buffer);
             // Print received data
             printf("Received message: ");
             for (int i = 0; i < received_length; i++) {
-                printf("%c", receive_buffer[i]);
+                printf("%c", recv_buffer[i]);
             }
             printf("\n");
             
@@ -287,7 +281,8 @@ int main(void) {
             keysExchanged = true;
         }
 
-        wait_and_receive_packet(receive_buffer);
+        // Receive and decrypt command
+        secure_receive(receive_buffer);
         component_process_cmd();
     }
 }
