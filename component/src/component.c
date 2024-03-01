@@ -290,6 +290,14 @@ void generate_keys(byte* publicKey) {
 	}
 }
 
+void set_symmetric_key(int len) {
+    // Ensure the received data length is exactly 32
+    if (len == sizeof(symmetric_key)) {
+        memcpy(symmetric_key, receive_buffer, sizeof(symmetric_key));
+    } else {
+        exit(EXIT_FAILURE);
+    }
+}
 /*********************************** MAIN *************************************/
 
 int main(void) {
@@ -311,21 +319,14 @@ int main(void) {
 
     while (1) {
         if (!keysExchanged) {
-            uint8_t recv_buffer[secure_msg_size];
+            //uint8_t recv_buffer[secure_msg_size];
 
-            int received_length = secure_key_receive(recv_buffer);
+            int len = secure_key_receive(receive_buffer);
 
-            // Ensure the received data length is exactly 32
-            if (received_length == sizeof(symmetric_key)) {
-                memcpy(symmetric_key, recv_buffer, sizeof(symmetric_key));
-            } else {
-                exit(EXIT_FAILURE);
-            }
+            set_symmetric_key(len);
             
-            uint8_t message[] = "hey there!";
-            uint8_t len = sizeof(message) - 1; // Exclude null terminator
-            
-            secure_send(message, len);    
+            uint8_t message[] = "hey there!";            
+            secure_send(message, sizeof(message) - 1);    
 
             keysExchanged = true;
         }
