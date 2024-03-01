@@ -1,6 +1,6 @@
 /**
  * @file "board_link.c"
- * @author Frederich Stine 
+ * @author Frederich Stine
  * @brief High Level API for I2C Controller Communications Implementation
  * @date 2024
  *
@@ -30,9 +30,9 @@ int board_link_init(i2c_addr_t addr) {
 
 /**
  * @brief Convert 4-byte component ID to I2C address
- * 
+ *
  * @param component_id: uint32_t, component_id to convert
- * 
+ *
  * @return i2c_addr_t, i2c address
 */
 i2c_addr_t component_id_to_i2c_addr(uint32_t component_id) {
@@ -41,9 +41,9 @@ i2c_addr_t component_id_to_i2c_addr(uint32_t component_id) {
 
 /**
  * @brief Send a packet to the AP and wait for ACK
- * 
+ *
  * @param message: uint8_t*, message to be sent
- * 
+ *
  * This function utilizes the simple_i2c_peripheral library to
  * send a packet to the AP and wait for the message to be received
 */
@@ -59,9 +59,9 @@ void send_packet_and_ack(uint8_t len, uint8_t* packet) {
 
 /**
  * @brief Wait for a new message from AP and process the message
- * 
+ *
  * @param packet: uint8_t*, message received
- * 
+ *
  * This function waits for a new message to be available from the AP,
  * once the message is available it is returned in the buffer pointer to by packet 
 */

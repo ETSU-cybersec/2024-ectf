@@ -23,7 +23,7 @@
 
 /**
  * @brief ISR for the Flash Controller
- * 
+ *
  * This ISR allows for access to the flash through simple_flash to operate
  */
 void flash_simple_irq(void) {
@@ -42,7 +42,7 @@ void flash_simple_irq(void) {
 
 /**
  * @brief Initialize the Simple Flash Interface
- * 
+ *
  * This function registers the interrupt for the flash system,
  * enables the interrupt, and disables ICC
 */
@@ -72,11 +72,11 @@ int flash_simple_erase_page(uint32_t address) {
 
 /**
  * @brief Flash Simple Read
- * 
+ *
  * @param address: uint32_t, address of flash page to read
  * @param buffer: uint32_t*, pointer to buffer for data to be read into
  * @param size: uint32_t, number of bytes to read from flash
- * 
+ *
  * This function reads data from the specified flash page into the buffer
  * with the specified amount of bytes
 */

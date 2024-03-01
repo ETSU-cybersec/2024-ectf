@@ -1,6 +1,6 @@
 /**
  * @file "simple_i2c_peripheral.c"
- * @author Frederich Stine 
+ * @author Frederich Stine
  * @brief Simple Asynchronous I2C Peripheral Implementation
  * @date 2024
  *
@@ -48,12 +48,12 @@ static void i2c_simple_isr(void);
 /******************************** FUNCTION DEFINITIONS ********************************/
 /**
  * @brief Initialize the I2C Connection
- * 
+ *
  * @param addr: uint8_t, the address of the I2C peripheral
- * 
+ *
  * @return int: negative if error, zero if successful
  *
- * Initialize the I2C by enabling the module, setting the address, 
+ * Initialize the I2C by enabling the module, setting the address,
  * setting the correct frequency, and enabling the interrupt to our i2c_simple_isr
 */
 int i2c_simple_peripheral_init(uint8_t addr) {
@@ -64,7 +64,7 @@ int i2c_simple_peripheral_init(uint8_t addr) {
         printf("Failed to initialize I2C.\n");
         return error;
     }
-    
+ 
     // Set frequency and clear FIFO
     MXC_I2C_SetFrequency(I2C_INTERFACE, I2C_FREQ);
     MXC_I2C_ClearRXFIFO(I2C_INTERFACE);
@@ -99,10 +99,10 @@ void i2c_simple_isr (void) {
 
     // Read interrupt flags
     uint32_t Flags = I2C_INTERFACE->intfl0;
-    
+
     // Transaction over interrupt
     if (Flags & MXC_F_I2C_INTFL0_STOP) {
-        
+
         // Ready any remaining data
         if (WRITE_START == true) {
             MXC_I2C_ReadRXFIFO(I2C_INTERFACE, (volatile unsigned char*) &ACTIVE_REG, 1);
@@ -171,14 +171,14 @@ void i2c_simple_isr (void) {
     if (Flags & MXC_F_I2C_INTFL0_WR_ADDR_MATCH) {
         // Clear ISR flag
         MXC_I2C_ClearFlags(I2C_INTERFACE, MXC_F_I2C_INTFL0_WR_ADDR_MATCH, 0);
-        
+
         // TX_LOCKOUT Triggers at the start of a just-in-time read
         if (Flags & MXC_F_I2C_INTFL0_TX_LOCKOUT) {
             MXC_I2C_ClearFlags(I2C_INTERFACE, MXC_F_I2C_INTFL0_TX_LOCKOUT, 0);
 
             // Select active register
             MXC_I2C_ReadRXFIFO(I2C_INTERFACE, (volatile unsigned char*) &ACTIVE_REG, 1);
-            
+
             // Write data to TX Buf
             if (ACTIVE_REG <= MAX_REG) {
                 READ_INDEX += MXC_I2C_WriteTXFIFO(I2C_INTERFACE, (volatile unsigned char*)I2C_REGS[ACTIVE_REG], I2C_REGS_LEN[ACTIVE_REG]);
