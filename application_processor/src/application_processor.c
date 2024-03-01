@@ -102,6 +102,7 @@ uint8_t decrypted[BLOCK_SIZE];
 byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
 byte publicKeys[ECC_BUFSIZE][COMPONENT_CNT]; /* Public key size for secp256r1 */
 size_t secure_msg_size = BLOCK_SIZE * 4;
+uint8_t symmetric_key[32];
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
@@ -129,7 +130,7 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
         padded_buffer[i] = PADDING_CHAR;
     }
 
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    memcpy(key, symmetric_key, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
 
     // Send the encrypted data
@@ -137,7 +138,35 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
 }
 
 
+/**
+ * @brief Secure Key Send 
+ * 
+ * @param address: i2c_addr_t, I2C address of recipient
+ * @param buffer: uint8_t*, pointer to data to be send
+ * @param len: uint8_t, size of data to be sent 
+ * 
+ * Securely send key data over I2C.
+*/
+int secure_key_send(uint8_t address, uint8_t* buffer, uint8_t len) {
+    // multiplex into structure
+    
+    uint8_t padded_buffer[secure_msg_size];
+    uint8_t ciph[secure_msg_size];
 
+    // Copy the original plaintext to the padded buffer
+    memcpy(padded_buffer, buffer, len);
+
+    // Add padding bytes with the chosen character
+    for (int i = len; i < secure_msg_size; i++) {
+        padded_buffer[i] = PADDING_CHAR;
+    }
+
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
+
+    // Send the encrypted data
+    return send_packet(address, secure_msg_size, ciph);
+}
 
 /**
  * @brief Secure Receive
@@ -151,6 +180,27 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
  * This function must be implemented by your team to align with the security requirements.
 */
 int secure_receive(i2c_addr_t address, uint8_t* buffer) {
+    poll_and_receive_packet(address, buffer);
+    
+    // //Decrypt receive
+	memcpy(key, symmetric_key, KEY_SIZE * sizeof(uint8_t));
+    size_t plaintext_length;
+    decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
+    
+    return plaintext_length;
+}
+
+/**
+ * @brief Secure Key Receive
+ * 
+ * @param address: i2c_addr_t, I2C address of sender
+ * @param buffer: uint8_t*, pointer to buffer to receive data to
+ * 
+ * @return int: number of bytes received, negative if error
+ * 
+ * Securely receive key data over I2C. 
+*/
+int secure_key_receive(i2c_addr_t address, uint8_t* buffer) {
     poll_and_receive_packet(address, buffer);
     
     // //Decrypt receive
@@ -213,6 +263,7 @@ void init() {
 int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
     // Encrypt and send message
     int result = secure_send(addr, transmit, secure_msg_size);
+    
     if (result == ERROR_RETURN) {
         return ERROR_RETURN;
     }
@@ -571,14 +622,18 @@ void hooven() {
 	}
 }
 
-void generate_keys(byte* publicKey) {
-    ecc_key curve_key;
-    WC_RNG rng;
+void generate_keys(byte* publicKey, uint8_t* symKey) {
+    // ecc_key curve_key;
+    // WC_RNG rng;
 
-	int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
-	if (keygen != 0) {
-		print_error("Error generating key: %d\n", keygen);
-	}
+	// int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
+	// if (keygen != 0) {
+	// 	print_error("Error generating key: %d\n", keygen);
+	// }
+
+    for (int i = 0; i < 32; i++) {
+        symKey[i] = rand() % 10; // Generates random numbers between 0 and 99
+    }
 }
 
 /*********************************** MAIN *************************************/
@@ -586,9 +641,10 @@ void generate_keys(byte* publicKey) {
 int main() {
     // Initialize board
     init();
-    byte publicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-    // generate_keys(&publicKey);
-    // register components
+
+    // generate symmetric and asymmetric keys
+    byte publicKey[ECC_BUFSIZE];
+    generate_keys(publicKey, symmetric_key);
 
     // Print the component IDs to be helpful
     // Your design does not need to do this
@@ -605,10 +661,8 @@ int main() {
         if (!keysExchanged) {
             // Print out provisioned component IDs
             for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-                uint8_t message[] = "hi, this is a really long string so i can test the length.";
-                uint8_t len = sizeof(message) - 1; // Exclude null terminator
-                
-                secure_send(flash_status.component_ids[0], message, len);
+                // send symmetric key
+                secure_key_send(flash_status.component_ids[0], symmetric_key, 32);
                 
                 uint8_t receive_buffer[secure_msg_size];
                 int received_length = secure_receive(flash_status.component_ids[0], receive_buffer);

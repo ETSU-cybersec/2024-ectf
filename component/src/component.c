@@ -13,78 +13,43 @@
 
 #include "board.h"
 #include "i2c.h"
-#include "icc.h"
 #include "led.h"
 #include "mxc_delay.h"
-#include "mxc_device.h"
+#include "mxc_errors.h"
 #include "nvic_table.h"
-
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "simple_i2c_peripheral.h"
 #include "board_link.h"
-#include "simple_flash.h"
-#include "host_messaging.h"
 #include "simple_crypto.h"
-
-#ifdef POST_BOOT
-#include <stdint.h>
-#include <stdio.h>
-#endif
 
 // Includes from containerized build
 #include "ectf_params.h"
 #include "global_secrets.h"
+
+#ifdef POST_BOOT
+#include "led.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#endif
 
 /********************************* CONSTANTS **********************************/
 
 // Passed in through ectf-params.h
 // Example of format of ectf-params.h shown here
 /*
-#define AP_PIN "123456"
-#define AP_TOKEN "0123456789abcdef"
-#define COMPONENT_IDS 0x11111124, 0x11111125
-#define COMPONENT_CNT 2
-#define AP_BOOT_MSG "Test boot message"
+#define COMPONENT_ID 0x11111124
+#define COMPONENT_BOOT_MSG "Component boot"
+#define ATTESTATION_LOC "McLean"
+#define ATTESTATION_DATE "08/08/08"
+#define ATTESTATION_CUSTOMER "Fritz"
 */
 
-// Flash Macros
-#define FLASH_ADDR ((MXC_FLASH_MEM_BASE + MXC_FLASH_MEM_SIZE) - (2 * MXC_FLASH_PAGE_SIZE))
-
-// Library call return types
-#define SUCCESS_RETURN 0
-#define ERROR_RETURN -1
-
 /******************************** TYPE DEFINITIONS ********************************/
-// Data structure for sending commands to component
-// Params allows for up to MAX_I2C_MESSAGE_LEN - 1 bytes to be send
-// along with the opcode through board_link. This is not utilized by the example
-// design but can be utilized by your design.
-typedef struct {
-    uint8_t opcode;
-    uint8_t params[MAX_I2C_MESSAGE_LEN-1];
-} command_message;
-
-// Data type for receiving a validate message
-typedef struct {
-    uint32_t component_id;
-} validate_message;
-
-// Data type for receiving a scan message
-typedef struct {
-    uint32_t component_id;
-} scan_message;
-
-// Datatype for information stored in flash
-typedef struct {
-    uint32_t flash_magic;
-    uint32_t component_cnt;
-    uint32_t component_ids[32];
-} flash_entry;
-
-// Datatype for commands sent to components
+// Commands received by Component using 32 bit integer
 typedef enum {
     COMPONENT_CMD_NONE,
     COMPONENT_CMD_SCAN,
@@ -93,15 +58,41 @@ typedef enum {
     COMPONENT_CMD_ATTEST
 } component_cmd_t;
 
+/******************************** TYPE DEFINITIONS ********************************/
+// Data structure for receiving messages from the AP
+typedef struct {
+    uint8_t opcode;
+    uint8_t params[MAX_I2C_MESSAGE_LEN-1];
+} command_message;
+
+typedef struct {
+    uint32_t component_id;
+} validate_message;
+
+typedef struct {
+    uint32_t component_id;
+} scan_message;
+
+/********************************* FUNCTION DECLARATIONS **********************************/
+// Core function definitions
+void component_process_cmd(void);
+void process_boot(void);
+void process_scan(void);
+void process_validate(void);
+void process_attest(void);
+
 /********************************* GLOBAL VARIABLES **********************************/
-// Variable for information stored in flash memory
-flash_entry flash_status;
+// Global varaibles
+uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
+uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
 uint8_t ciphertext[BLOCK_SIZE];
 uint8_t key[KEY_SIZE];
 uint8_t decrypted[BLOCK_SIZE];
 byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-byte publicKeys[ECC_BUFSIZE][COMPONENT_CNT]; /* Public key size for secp256r1 */
+byte apPublicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
 size_t secure_msg_size = BLOCK_SIZE * 4;
+uint8_t symmetric_key[32];
+
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
@@ -112,11 +103,8 @@ size_t secure_msg_size = BLOCK_SIZE * 4;
  * 
  * Securely send data over I2C. This function is utilized in POST_BOOT functionality.
  * This function must be implemented by your team to align with the security requirements.
-
 */
-int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    // multiplex into structure
-    
+void secure_send(uint8_t* buffer, uint8_t len) {
     uint8_t padded_buffer[secure_msg_size];
     uint8_t ciph[secure_msg_size];
 
@@ -127,20 +115,42 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
     for (int i = len; i < secure_msg_size; i++) {
         padded_buffer[i] = PADDING_CHAR;
     }
+    
+    memcpy(key, symmetric_key, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
 
+    send_packet_and_ack(secure_msg_size, ciph); 
+}
+
+/**
+ * @brief Secure Key Send 
+ * 
+ * @param buffer: uint8_t*, pointer to data to be send
+ * @param len: uint8_t, size of data to be sent 
+ * 
+ * Securely send key data over I2C. 
+*/
+void secure_key_send(uint8_t* buffer, uint8_t len) {
+    uint8_t padded_buffer[secure_msg_size];
+    uint8_t ciph[secure_msg_size];
+
+    // Copy the original plaintext to the padded buffer
+    memcpy(padded_buffer, buffer, len);
+
+    // Add padding bytes with the chosen character
+    for (int i = len; i < secure_msg_size; i++) {
+        padded_buffer[i] = PADDING_CHAR;
+    }
+    
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
 
     send_packet_and_ack(secure_msg_size, ciph); 
 }
 
-
-
-
 /**
  * @brief Secure Receive
  * 
- * @param address: i2c_addr_t, I2C address of sender
  * @param buffer: uint8_t*, pointer to buffer to receive data to
  * 
  * @return int: number of bytes received, negative if error
@@ -151,231 +161,48 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
 int secure_receive(uint8_t* buffer) {
     wait_and_receive_packet(buffer);
     //Decrypt buffer
-	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+	memcpy(key, symmetric_key, KEY_SIZE * sizeof(uint8_t));
     size_t plaintext_length;
     decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
-    
+
     return plaintext_length;
 }
 
 /**
- * @brief Get Provisioned IDs
+ * @brief Secure Key Receive
  * 
- * @param uint32_t* buffer
+ * @param buffer: uint8_t*, pointer to buffer to receive data to
  * 
- * @return int: number of ids
+ * @return int: number of bytes received, negative if error
  * 
- * Return the currently provisioned IDs and the number of provisioned IDs
- * for the current AP. This functionality is utilized in POST_BOOT functionality.
- * This function must be implemented by your team.
+ * Securely receive key data over I2C. 
 */
-int get_provisioned_ids(uint32_t* buffer) {
-    memcpy(buffer, flash_status.component_ids, flash_status.component_cnt * sizeof(uint32_t));
-    return flash_status.component_cnt;
-}
-
-/********************************* UTILITIES **********************************/
-
-// Initialize the device
-// This must be called on startup to initialize the flash and i2c interfaces
-void init() {
-
-    // Enable global interrupts    
-    __enable_irq();
-
-    // Setup Flash
-    flash_simple_init();
-
-    // Test application has been booted before
-    flash_simple_read(FLASH_ADDR, (uint32_t*)&flash_status, sizeof(flash_entry));
-
-    // Write Component IDs from flash if first boot e.g. flash unwritten
-    if (flash_status.flash_magic != FLASH_MAGIC) {
-        print_debug("First boot, setting flash!\n");
-
-        flash_status.flash_magic = FLASH_MAGIC;
-        flash_status.component_cnt = COMPONENT_CNT;
-        uint32_t component_ids[COMPONENT_CNT] = {COMPONENT_IDS};
-        memcpy(flash_status.component_ids, component_ids, 
-            COMPONENT_CNT*sizeof(uint32_t));
-
-        flash_simple_write(FLASH_ADDR, (uint32_t*)&flash_status, sizeof(flash_entry));
-    }
-    
-    // Initialize board link interface
-    board_link_init();
-}
-
-// Send a command to a component and receive the result
-int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
-    // Encrypt and send message
-    int result = secure_send(addr, transmit, secure_msg_size);
-    if (result == ERROR_RETURN) {
-        return ERROR_RETURN;
-    }
-    
-    int len = secure_receive(addr, receive);
-
-    if (len == ERROR_RETURN) {
-        return ERROR_RETURN;
-    }
-
-    return len;
-}
-
-/******************************** COMPONENT COMMS ********************************/
-
-int scan_components() {
-    // Print out provisioned component IDs
-    for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-        print_info("P>0x%08x\n", flash_status.component_ids[i]);
-    }
-
-    // Buffers for board link communication
-    uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
-    uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
-
-    // Scan scan command to each component 
-    for (i2c_addr_t addr = 0x8; addr < 0x78; addr++) {
-        // I2C Blacklist:
-        // 0x18, 0x28, and 0x36 conflict with separate devices on MAX78000FTHR
-        if (addr == 0x18 || addr == 0x28 || addr == 0x36) {
-            continue;
-        }
-
-        // Create command message 
-        command_message* command = (command_message*) transmit_buffer;
-        command->opcode = COMPONENT_CMD_SCAN;
-
-        // Send out command and receive result
-        int len = issue_cmd(addr, transmit_buffer, receive_buffer);
-
-        // Success, device is present
-        if (len > 0) {
-            scan_message* scan = (scan_message*) receive_buffer;
-            print_info("F>0x%08x\n", scan->component_id);
-        }
-    }
-    print_success("List\n");
-    return SUCCESS_RETURN;
-}
-
-int validate_components() {
-    // Buffers for board link communication
-    uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
-    uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
-
-    // Send validate command to each component
-    for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-        // Set the I2C address of the component
-        i2c_addr_t addr = component_id_to_i2c_addr(flash_status.component_ids[i]);
-
-        // Create command message
-        command_message* command = (command_message*) transmit_buffer;
-        command->opcode = COMPONENT_CMD_VALIDATE;
-        
-        // Send out command and receive result
-        int len = issue_cmd(addr, transmit_buffer, receive_buffer);
-        if (len == ERROR_RETURN) {
-            print_error("Could not validate component\n");
-            return ERROR_RETURN;
-        }
-
-        validate_message* validate = (validate_message*) receive_buffer;
-        // Check that the result is correct
-        if (validate->component_id != flash_status.component_ids[i]) {
-            print_error("Component ID: 0x%08x invalid\n", flash_status.component_ids[i]);
-            return ERROR_RETURN;
-        }
-    }
-    return SUCCESS_RETURN;
-}
-
-int boot_components() {
-    // Buffers for board link communication
-    uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
-    uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
-
-    // Send boot command to each component
-    for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-        // Set the I2C address of the component
-        i2c_addr_t addr = component_id_to_i2c_addr(flash_status.component_ids[i]);
-        
-        // Create command message
-        command_message* command = (command_message*) transmit_buffer;
-        command->opcode = COMPONENT_CMD_BOOT;
-
-
-        // Send out command and receive result
-        int len = issue_cmd(addr, transmit_buffer, receive_buffer);
-        if (len == ERROR_RETURN) {
-            print_error("Could not boot component\n");
-            return ERROR_RETURN;
-        }
-
-        // Print boot message from component
-        print_info("0x%08x>%s\n", flash_status.component_ids[i], receive_buffer);
-    }
-    return SUCCESS_RETURN;
-}
-
-int attest_component(uint32_t component_id) {
-    // Buffers for board link communication
-    uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
-    uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
-
-    // Set the I2C address of the component
-    i2c_addr_t addr = component_id_to_i2c_addr(component_id);
-
-    // Create command message
-    command_message* command = (command_message*) transmit_buffer;
-    command->opcode = COMPONENT_CMD_ATTEST;
-
-    // Send out command and receive result
-    int len = issue_cmd(addr, transmit_buffer, receive_buffer);
-    if (len == ERROR_RETURN) {
-        print_error("Could not attest component\n");
-        return ERROR_RETURN;
-    }
-
-    // Print out attestation data 
-    print_info("C>0x%08x\n", component_id);
-    print_info("%s", receive_buffer);
-    return SUCCESS_RETURN;
-}
-
-/********************************* AP LOGIC ***********************************/
-
-// Boot sequence
-// YOUR DESIGN MUST NOT CHANGE THIS FUNCTION
-// Boot message is customized through the AP_BOOT_MSG macro
-void boot() {
-    // Example of how to utilize included simple_crypto.h
-    // This string is 16 bytes long including null terminator
-    // This is the block size of included symmetric encryption
-    char* data = "Crypto Example!";
-    uint8_t ciphertext[BLOCK_SIZE];
-    uint8_t key[KEY_SIZE];
-
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-
-    // Encrypt example data and print out
-    encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
-    print_debug("Encrypted data: ");
-    print_hex_debug(ciphertext, BLOCK_SIZE);
-
-    // Decrypt the encrypted message and print out
-    uint8_t decrypted[BLOCK_SIZE];
+int secure_key_receive(uint8_t* buffer) {
+    wait_and_receive_packet(buffer);
+    //Decrypt buffer
+	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     size_t plaintext_length;
-    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted, &plaintext_length);
-    print_debug("Decrypted message: %s\r\n", decrypted);
+    decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
+
+    return plaintext_length;
+}
+
+/******************************* FUNCTION DEFINITIONS *********************************/
+
+// Example boot sequence
+// Your design does not need to change this
+void boot() {
 
     // POST BOOT FUNCTIONALITY
     // DO NOT REMOVE IN YOUR DESIGN
     #ifdef POST_BOOT
         POST_BOOT
     #else
-    // Everything after this point is modifiable in your design
+    // Anything after this macro can be changed by your design
+    // but will not be run on provisioned systems
+    LED_Off(LED1);
+    LED_Off(LED2);
+    LED_Off(LED3);
     // LED loop to show that boot occurred
     for (int i = 0; i < 3; i++) {
         LED_On(LED1);
@@ -430,133 +257,28 @@ void process_boot() {
     boot();
 }
 
-// Replace a component if the PIN is correct
-void attempt_replace() {
-    size_t size = 50;
-    char buf[size];
-
-    if (validate_token()) {
-        return;
-    }
-
-    uint32_t component_id_in = 0;
-    uint32_t component_id_out = 0;
-
-    recv_input("Component ID In: ", buf, size);
-    sscanf(buf, "%x", &component_id_in);
-    recv_input("Component ID Out: ", buf, size);
-    sscanf(buf, "%x", &component_id_out);
-
-    // Find the component to swap out
-    for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-        if (flash_status.component_ids[i] == component_id_out) {
-            flash_status.component_ids[i] = component_id_in;
-
-            // write updated component_ids to flash
-            flash_simple_erase_page(FLASH_ADDR);
-            flash_simple_write(FLASH_ADDR, (uint32_t*)&flash_status, sizeof(flash_entry));
-
-            print_debug("Replaced 0x%08x with 0x%08x\n", component_id_out,
-                    component_id_in);
-            print_success("Replace\n");
-            return;
-        }
-    }
-
-    // Component Out was not found
-    print_error("Component 0x%08x is not provisioned for the system\r\n",
-            component_id_out);
+void process_scan() {
+    // The AP requested a scan. Respond with the Component ID
+    scan_message* packet = (scan_message*) transmit_buffer;
+    packet->component_id = COMPONENT_ID;
+    //Encrypt and send
+    secure_send(transmit_buffer, sizeof(scan_message));
 }
 
-// Attest a component if the PIN is correct
-void attempt_attest() {
-    size_t size = 50;
-    char buf[size];
-
-    if (validate_pin()) {
-        return;
-    }
-    uint32_t component_id;
-    recv_input("Component ID: ", buf, size);
-    sscanf(buf, "%x", &component_id);
-    if (attest_component(component_id) == SUCCESS_RETURN) {
-        print_success("Attest\n");
-    }
-}
+void process_validate() {
+    // The AP requested a validation. Respond with the Component ID
+    validate_message* packet = (validate_message*) transmit_buffer;
+    packet->component_id = COMPONENT_ID;
+    //Encrypt and send
+    secure_send(transmit_buffer, sizeof(validate_message));}
 
 
-void hooven() {
-    char* data = "Crypto Example!";
-    uint8_t ciphertext[BLOCK_SIZE];
-    uint8_t key[KEY_SIZE];
-    byte publicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-    byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-    ecc_key curve_key;
-	WC_RNG rng;
-
-	int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
-	if (keygen != 0) {
-		print_error("Error generating key: %d\n", keygen);
-	}
-    print_error("Public Key: ");
-    for (int i = 0; i < 65; ++i) {
-        printf("%02X", publicKey[i]);
-    }
-    print_error("\n");
-    
-     // Print out provisioned component IDs
-    for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-        secure_send(flash_status.component_ids[i], publicKey, sizeof(publicKey));
-    }
-
-    
-
-    print_error("Private Key: %d\n", privateKey); 	
-    print_error("Private Key: ");
-    for (int i = 0; i < 65; ++i) {
-        printf("%02X", privateKey[i]);
-    }
-    print_error("\n");
-
-	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-
-    // Encrypt example data and print out
-    encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
-    print_debug("Encrypted data: ");
-    print_hex_debug(ciphertext, BLOCK_SIZE);
-
-	word32 sig_len = ECC_MAX_SIG_SIZE;
-	byte signature[sig_len];
-	uint8_t digest[HASH_SIZE];
-
-	int sigCheck = asym_sign(ciphertext, signature, &curve_key, &sig_len, &rng, digest);
-	if (sigCheck != 0) {
-		print_error("Error with signing: %d\n");
-	}
-	else {
-		print_debug("SIGN SUCCESS: %d\n", sigCheck);
-		print_hex_debug(signature, sig_len);
-		print_hex_debug(ciphertext, HASH_SIZE);
-	}
-
-	int status = 0;
-	
-	int validCheck = asym_validate(signature, sig_len, digest, HASH_SIZE, &status, &publicKey);
-	if (validCheck != 0) {
-		print_error("Validation failed: %d\n", validCheck);
-	} else if (status == 0) {
-		print_error("Invalid Signature: %d\n", status);
-	} else {
-		print_debug("Verification succeeded. Signature is Valid!\n");
-		
-		// Decrypt the encrypted message and print out
-		uint8_t decrypted[BLOCK_SIZE];
-        
-        size_t plaintext_length;
-    	decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted, &plaintext_length);
-    	print_debug("Decrypted message: %s\r\n", decrypted);
-	}
-}
+void process_attest() {
+    // The AP requested attestation. Respond with the attestation data
+    uint8_t len = sprintf((char*)transmit_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n",
+                ATTESTATION_LOC, ATTESTATION_DATE, ATTESTATION_CUSTOMER) + 1;
+    //Encrypt and send
+    secure_send(transmit_buffer, len);}
 
 void generate_keys(byte* publicKey) {
     ecc_key curve_key;
@@ -587,21 +309,18 @@ int main(void) {
 
     bool keysExchanged = false;
 
-    // Handle commands forever
-    size_t size = 50;
-    char buf[size];
     while (1) {
-        recv_input("Enter Command: ", buf, size);
-
         if (!keysExchanged) {
             uint8_t recv_buffer[secure_msg_size];
-            int received_length = secure_receive(recv_buffer);
-            // Print received data
-            printf("Received message: ");
-            for (int i = 0; i < received_length; i++) {
-                printf("%c", recv_buffer[i]);
+
+            int received_length = secure_key_receive(recv_buffer);
+
+            // Ensure the received data length is exactly 32
+            if (received_length == sizeof(symmetric_key)) {
+                memcpy(symmetric_key, recv_buffer, sizeof(symmetric_key));
+            } else {
+                exit(EXIT_FAILURE);
             }
-            printf("\n");
             
             uint8_t message[] = "hey there!";
             uint8_t len = sizeof(message) - 1; // Exclude null terminator
