@@ -48,7 +48,7 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
 
 
     // Encrypt each block
-    for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
+    for (int i = 0; i < len; i += BLOCK_SIZE) {
         result = wc_AesEncryptDirect(&ctx, ciphertext + i, plaintext + i);
         if (result != 0)
             return result; // Report error
@@ -72,7 +72,7 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
  *
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
-int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext) {
+int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext, size_t *plaintext_length) {
     Aes ctx; // Context for decryption
     int result; // Library result
 
@@ -86,11 +86,22 @@ int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintex
         return result; // Report error
 
     // Decrypt each block
-    for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
+    for (int i = 0; i < len; i += BLOCK_SIZE) {
         result = wc_AesDecryptDirect(&ctx, plaintext + i, ciphertext + i);
         if (result != 0)
             return result; // Report error
     }
+
+    // Remove padding
+    size_t padding = 0;
+    for (int i = len - 1; i >= 0; i--) {
+        if (plaintext[i] == PADDING_CHAR)
+            padding++;
+        else
+            break;
+    }
+    *plaintext_length = len - padding;
+
     return 0;
 }
 
@@ -139,11 +150,11 @@ int hash(const byte *data, size_t len, uint8_t *hash_out) {
  * MXC_TRNG_Random - Copyright (C) 2023 Maxim Integrated Products, Inc., All Rights Reserved.
  */
 unsigned int custom_rand_generate_block(byte* data, word32 len) {
-	int ret = MXC_TRNG_Random(data, len);
-	if (ret != 0) {
-		return ret;
-	}
-	return 0;
+    int ret = MXC_TRNG_Random(data, len);
+    if (ret != 0) {
+        return ret;
+    }
+    return 0;
 }
 
 /**@brief   Get a random number from MXC TRNG to seed WolfCrypt RNG
@@ -153,7 +164,7 @@ unsigned int custom_rand_generate_block(byte* data, word32 len) {
  * MXC_TRNG_RandomInt - Copyright (C) 2023 Maxim Integrated Products, Inc., All Rights Reserved.
  */
 unsigned int rand_gen(void) {
-	return MXC_TRNG_RandomInt();
+    return MXC_TRNG_RandomInt();
 }
 
 /** @brief 	Initializes then generate and store key values in the ECC_Key struct
@@ -164,33 +175,64 @@ unsigned int rand_gen(void) {
  *
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
-int ecc_keygen(ecc_key *key, WC_RNG *rng) {
-	//Initialize the Hardware RNG
-	int boardInit = MXC_TRNG_Init();
-	if (boardInit != 0) {
-		return boardInit; //Report error
-	}
+int ecc_keygen(ecc_key *key, WC_RNG *rng, ecc_key *publicKeyCom, byte *privateKey) {
+    //Initialize the Hardware RNG
+    int boardInit = MXC_TRNG_Init();
+    if (boardInit != 0) {
+        return boardInit; //Report error
+    }
 
-	//Initialize WolfSSL WC_RNG struct
-	int rngInit = wc_InitRng(rng);
-	if (rngInit != 0) {
-		return rngInit; //Report error
-	}
+    //Initialize WolfSSL WC_RNG struct
+    int rngInit = wc_InitRng(rng);
+    if (rngInit != 0) {
+        return rngInit; //Report error
+    }
 
-	//Initialize ECC Key struct
-	int eccInit = wc_ecc_init(key);
-	if (eccInit != 0) {
-		return eccInit; //Report error
-	}
+    //Initialize ECC Key struct
+    int eccInit = wc_ecc_init(key);
+    if (eccInit != 0) {
+        return eccInit; //Report error
+    }
 
-	//Generate Key
-	int makeKey = wc_ecc_make_key(rng, KEY_SIZE, key);
-	if(makeKey != 0) {
-		return makeKey; //Report error
-	}
-	
-	return 0;
+    //Generate Key
+    int makeKey = wc_ecc_make_key(rng, KEY_SIZE, key);
+    if(makeKey != 0) {
+        return makeKey; //Report error
+    }
+
+    /* Extract the public key */
+    //byte publicKey[65]; /* Public key size for secp256r1 */
+    word32 eccPubSize = ECC_BUFSIZE;
+    byte *publicKey[ECC_BUFSIZE];
+    int pubkey = wc_ecc_export_x963(key, publicKey, &eccPubSize);
+    printf("Public key size: %d\n", eccPubSize);
+    if (pubkey != 0) {
+        printf("wc_ecc_export_x963 failed for public key: %d\n", pubkey);
+        return pubkey;
+    }
+
+    //ecc_key publicKeyCom;
+    /* Import the public key */
+    int publickeyimport = wc_ecc_import_x963(publicKey, eccPubSize, publicKeyCom);
+    if (publickeyimport != 0) {
+        printf("ECC public key import failed! %d\n", publickeyimport);
+    }
+
+
+    /* Extract the private key */
+    word32 eccPrivSize = ECC_BUFSIZE;
+    int privkey = wc_ecc_export_private_only(key, privateKey, &eccPrivSize);
+    printf("Private key size: %d\n", eccPrivSize);
+    if (privkey != 0) {
+        printf("wc_ecc_export_x963 failed for public key: %d\n", privkey);
+         return privkey;
+    }
+
+    return 0;
 }
+
+
+
 
 /** @brief Cryptographically signs an encrypted ciphertext 
  * 		   uses WolfSSL's WolfCrypt library for Hashing/Signing
@@ -214,16 +256,16 @@ int ecc_keygen(ecc_key *key, WC_RNG *rng) {
  */
 int asym_sign(uint8_t *ciphertext, byte *signature, ecc_key *key, word32 *sig_len, WC_RNG *rng, uint8_t *digest) {
 
-	//Hash the encrypted command
-	hash(ciphertext, BLOCK_SIZE, digest);
+    //Hash the encrypted command
+    hash(ciphertext, BLOCK_SIZE, digest);
 
-	//Sign the hashed message, and store signature in signature
-	int result = wc_ecc_sign_hash(digest, HASH_SIZE, signature, sig_len, rng, key);
-	if (result != 0){
-		return result; //Report error
-	}
+    //Sign the hashed message, and store signature in signature
+    int result = wc_ecc_sign_hash(digest, HASH_SIZE, signature, sig_len, rng, key);
+    if (result != 0){
+        return result; //Report error
+    }
 
-	return 0;
+    return 0;
 }
 
 /* @brief Verifies an ECC signature of a hashed ciphertext for authentication purposes
@@ -246,12 +288,12 @@ int asym_sign(uint8_t *ciphertext, byte *signature, ecc_key *key, word32 *sig_le
 
 int asym_validate(const byte *signature, word32 sig_len, const byte *hash, word32 hash_len, int *status, ecc_key *key) {
 
-	//Validate Signature
-	int valid = wc_ecc_verify_hash(signature, sig_len, hash, hash_len, status, key);
+    //Validate Signature
+    int valid = wc_ecc_verify_hash(signature, sig_len, hash, hash_len, status, key);
 
-	if (valid != 0) {
-		return valid; //Report error
-	}
+    if (valid != 0) {
+        return valid; //Report error
+    }
 
-	return 0;
+    return 0;
 }

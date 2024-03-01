@@ -1,6 +1,6 @@
 /**
  * @file component.c
- * @author Jacob Doll 
+ * @author Jacob Doll
  * @brief eCTF Component Example Design Implementation
  * @date 2024
  *
@@ -88,6 +88,9 @@ uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
 uint8_t ciphertext[BLOCK_SIZE];
 uint8_t key[KEY_SIZE];
 uint8_t decrypted[BLOCK_SIZE];
+byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
+byte apPublicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
+size_t secure_msg_size = BLOCK_SIZE * 4;
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
@@ -100,11 +103,21 @@ uint8_t decrypted[BLOCK_SIZE];
  * This function must be implemented by your team to align with the security requirements.
 */
 void secure_send(uint8_t* buffer, uint8_t len) {
-    //Encrypt send
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    encrypt_sym((uint8_t*)buffer, BLOCK_SIZE, key, ciphertext);
+    uint8_t padded_buffer[secure_msg_size];
+    uint8_t ciph[secure_msg_size];
 
-    send_packet_and_ack(KEY_SIZE * sizeof(uint8_t), ciphertext);
+    // Copy the original plaintext to the padded buffer
+    memcpy(padded_buffer, buffer, len);
+
+    // Add padding bytes with the chosen character
+    for (int i = len; i < secure_msg_size; i++) {
+        padded_buffer[i] = PADDING_CHAR;
+    }
+
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
+
+    send_packet_and_ack(secure_msg_size, ciph);
 }
 
 /**
@@ -121,9 +134,10 @@ int secure_receive(uint8_t* buffer) {
     wait_and_receive_packet(buffer);
     //Decrypt buffer
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    decrypt_sym(buffer, BLOCK_SIZE, key, buffer);
+    size_t plaintext_length;
+    decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
 
-    return sizeof(buffer) / sizeof(buffer[0]);
+    return plaintext_length;
 }
 
 /******************************* FUNCTION DEFINITIONS *********************************/
@@ -157,31 +171,18 @@ void boot() {
         LED_Off(LED3);
         MXC_Delay(500000);
     }
-
-    uint8_t receive_buffer[50];
-    int received_length = secure_receive(receive_buffer);
-
-    // Print received data
-    printf("Received message: ");
-    for (int i = 0; i <= received_length; i++) {
-        printf("%c", receive_buffer[i]);
-    }
-    printf("\n");
-
-    uint8_t message[] = "hello";    
-    secure_send(message, sizeof(message) - 1);
-
     #endif
 }
 
 // Handle a transaction from the AP
 void component_process_cmd() {
     // //Decrypt AP Commands
-	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-	decrypt_sym(receive_buffer, BLOCK_SIZE, key, decrypted);
+    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
+    size_t plaintext_length;
+    decrypt_sym(receive_buffer, BLOCK_SIZE, key, decrypted, &plaintext_length);
 
     //send_packet_and_ack(sizeof(decrypted), decrypted);
-	command_message* command = (command_message*) decrypted;
+    command_message* command = (command_message*) decrypted;
     // Output to application processor dependent on command received
     switch (command->opcode) {
     case COMPONENT_CMD_BOOT:
@@ -208,11 +209,9 @@ void process_boot() {
     uint8_t len = strlen(COMPONENT_BOOT_MSG) + 1;
     memcpy((void*)transmit_buffer, COMPONENT_BOOT_MSG, len);
 
-    //Encrypt transmit
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
+    //Encrypt and send
+    secure_send(transmit_buffer, len);
 
-    send_packet_and_ack(sizeof(ciphertext), ciphertext);
     // Call the boot function
     boot();
 }
@@ -221,38 +220,43 @@ void process_scan() {
     // The AP requested a scan. Respond with the Component ID
     scan_message* packet = (scan_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
-    //Encrypt transmit
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
- 
-    send_packet_and_ack(sizeof(ciphertext), ciphertext);
+    //Encrypt and send
+    secure_send(transmit_buffer, sizeof(scan_message));
 }
 
 void process_validate() {
     // The AP requested a validation. Respond with the Component ID
     validate_message* packet = (validate_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
-    //Encrypt transmit
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
+    //Encrypt and send
+    secure_send(transmit_buffer, sizeof(validate_message));}
 
-    send_packet_and_ack(sizeof(ciphertext), ciphertext);}
 
 void process_attest() {
     // The AP requested attestation. Respond with the attestation data
     uint8_t len = sprintf((char*)transmit_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n",
                 ATTESTATION_LOC, ATTESTATION_DATE, ATTESTATION_CUSTOMER) + 1;
-    //Encrypt transmit
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-    encrypt_sym((uint8_t*)transmit_buffer, BLOCK_SIZE, key, ciphertext);
+    //Encrypt and send
+    secure_send(transmit_buffer, len);}
 
-    send_packet_and_ack(sizeof(ciphertext), ciphertext);}
+void generate_keys(byte* publicKey) {
+    ecc_key curve_key;
+    WC_RNG rng;
+
+    int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
+    if (keygen != 0) {
+        printf("Error generating key: %d\n", keygen);
+    }
+}
 
 /*********************************** MAIN *************************************/
 
 int main(void) {
     printf("Component Started\n");
- 
+
+    byte publicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
+    // generate_keys(&publicKey);
+
     // Enable Global Interrupts
     __enable_irq();
  
@@ -262,7 +266,27 @@ int main(void) {
  
     LED_On(LED2);
 
+    bool keysExchanged = false;
+
     while (1) {
+        if (!keysExchanged) {
+            uint8_t receive_buffer[secure_msg_size];
+            int received_length = secure_receive(receive_buffer);
+            // Print received data
+            printf("Received message: ");
+            for (int i = 0; i < received_length; i++) {
+                printf("%c", receive_buffer[i]);
+            }
+            printf("\n");
+
+            uint8_t message[] = "hey there!";
+            uint8_t len = sizeof(message) - 1; // Exclude null terminator
+
+            secure_send(message, len);
+
+            keysExchanged = true;
+        }
+
         wait_and_receive_packet(receive_buffer);
         component_process_cmd();
     }

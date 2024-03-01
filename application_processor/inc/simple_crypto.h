@@ -26,6 +26,7 @@
 #define BLOCK_SIZE AES_BLOCK_SIZE
 #define KEY_SIZE 32
 #define HASH_SIZE SHA256_DIGEST_SIZE
+#define PADDING_CHAR '\0'
 
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
@@ -62,7 +63,7 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
  *
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
-int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext);
+int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext, size_t *plaintext_length);
 
 /** @brief Hashes arbitrary-length data (Edited to use SHA256 for strong security)
  *
@@ -86,7 +87,7 @@ int hash(const byte *data, size_t len, uint8_t *hash_out);
  *
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
-int ecc_keygen(ecc_key *key, WC_RNG *rng);
+int ecc_keygen(ecc_key *key, WC_RNG *rng, ecc_key *publicKey, byte *privateKey);
 
 /** @brief Cryptographically signs an encrypted ciphertext
  *                 uses WolfSSL's WolfCrypt library for Hashing/Signing

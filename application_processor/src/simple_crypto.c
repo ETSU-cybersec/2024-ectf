@@ -12,6 +12,7 @@
  */
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include "host_messaging.h"
 #include "simple_crypto.h"
 #include <stdint.h>
 #include <string.h>
@@ -48,7 +49,7 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
 
 
     // Encrypt each block
-    for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
+    for (int i = 0; i < len; i += BLOCK_SIZE) {
         result = wc_AesEncryptDirect(&ctx, ciphertext + i, plaintext + i);
         if (result != 0)
             return result; // Report error
@@ -72,7 +73,7 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
  *
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
-int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext) {
+int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext, size_t *plaintext_length) {
     Aes ctx; // Context for decryption
     int result; // Library result
 
@@ -86,11 +87,22 @@ int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintex
         return result; // Report error
 
     // Decrypt each block
-    for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
+    for (int i = 0; i < len; i += BLOCK_SIZE) {
         result = wc_AesDecryptDirect(&ctx, plaintext + i, ciphertext + i);
         if (result != 0)
             return result; // Report error
     }
+
+    // Remove padding
+    size_t padding = 0;
+    for (int i = len - 1; i >= 0; i--) {
+        if (plaintext[i] == PADDING_CHAR)
+            padding++;
+        else
+            break;
+    }
+    *plaintext_length = len - padding;
+
     return 0;
 }
 
@@ -164,7 +176,7 @@ unsigned int rand_gen(void) {
  *
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
-int ecc_keygen(ecc_key *key, WC_RNG *rng) {
+int ecc_keygen(ecc_key *key, WC_RNG *rng, ecc_key *publicKeyCom, byte *privateKey) {
     //Initialize the Hardware RNG
     int boardInit = MXC_TRNG_Init();
     if (boardInit != 0) {
@@ -189,10 +201,42 @@ int ecc_keygen(ecc_key *key, WC_RNG *rng) {
         return makeKey; //Report error
     }
 
+    /* Extract the public key */
+    //byte publicKey[65]; /* Public key size for secp256r1 */
+    word32 eccPubSize = ECC_BUFSIZE;
+    byte *publicKey[ECC_BUFSIZE];
+    int pubkey = wc_ecc_export_x963(key, publicKey, &eccPubSize);
+    print_error("Public key size: %d\n", eccPubSize);
+    if (pubkey != 0) {
+        print_error("wc_ecc_export_x963 failed for public key: %d\n", pubkey);
+        return pubkey;
+    }
+ 
+    //ecc_key publicKeyCom;
+    /* Import the public key */
+    int publickeyimport = wc_ecc_import_x963(publicKey, eccPubSize, publicKeyCom);
+    if (publickeyimport != 0) {
+        print_error("ECC public key import failed! %d\n", publickeyimport);
+    }
+
+
+    /* Extract the private key */
+    word32 eccPrivSize = ECC_BUFSIZE;
+    int privkey = wc_ecc_export_private_only(key, privateKey, &eccPrivSize);
+        print_error("Private key size: %d\n", eccPrivSize);
+    if (privkey != 0) {
+        print_error("wc_ecc_export_x963 failed for public key: %d\n", privkey);
+         return privkey;
+    }
+
     return 0;
 }
 
-/** @brief Cryptographically signs an encrypted ciphertext
+
+
+
+/** @brief Cryptographically signs an encrypted ciphertext 
+>>>>>>> 9611ac90ecac26a6733720f235dec332c37fe9a0
  * 		   uses WolfSSL's WolfCrypt library for Hashing/Signing
  * 		   and MAX78000fthr's on board hardware for RNG
  *
