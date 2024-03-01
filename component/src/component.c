@@ -319,10 +319,7 @@ int main(void) {
 
     while (1) {
         if (!keysExchanged) {
-            //uint8_t recv_buffer[secure_msg_size];
-
             int len = secure_key_receive(receive_buffer);
-
             set_symmetric_key(len);
             
             uint8_t message[] = "hey there!";            
