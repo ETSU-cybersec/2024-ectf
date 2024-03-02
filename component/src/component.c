@@ -112,7 +112,7 @@ void secure_send(uint8_t* buffer, uint8_t len) {
     for (int i = len; i < secure_msg_size; i++) {
         padded_buffer[i] = PADDING_CHAR;
     }
-    
+    uint8_t key[KEY_SIZE];
     memcpy(key, symmetric_key, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
 
@@ -138,7 +138,7 @@ void secure_key_send(uint8_t* buffer, uint8_t len) {
     for (int i = len; i < secure_msg_size; i++) {
         padded_buffer[i] = PADDING_CHAR;
     }
-    
+    uint8_t key[KEY_SIZE];
     memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
 
@@ -158,6 +158,7 @@ void secure_key_send(uint8_t* buffer, uint8_t len) {
 int secure_receive(uint8_t* buffer) {
     wait_and_receive_packet(buffer);
     //Decrypt buffer
+    uint8_t key[KEY_SIZE];
 	memcpy(key, symmetric_key, KEY_SIZE * sizeof(uint8_t));
     size_t plaintext_length;
     decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
@@ -177,6 +178,7 @@ int secure_receive(uint8_t* buffer) {
 int secure_key_receive(uint8_t* buffer) {
     wait_and_receive_packet(buffer);
     //Decrypt buffer
+    uint8_t key[KEY_SIZE];
 	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     size_t plaintext_length;
     decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
