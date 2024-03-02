@@ -96,9 +96,6 @@ typedef enum {
 /********************************* GLOBAL VARIABLES **********************************/
 // Variable for information stored in flash memory
 flash_entry flash_status;
-uint8_t ciphertext[BLOCK_SIZE];
-uint8_t key[KEY_SIZE];
-uint8_t decrypted[BLOCK_SIZE];
 byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
 byte publicKeys[ECC_BUFSIZE][COMPONENT_CNT]; /* Public key size for secp256r1 */
 size_t secure_msg_size = BLOCK_SIZE * 4;
@@ -404,26 +401,6 @@ int attest_component(uint32_t component_id) {
 // YOUR DESIGN MUST NOT CHANGE THIS FUNCTION
 // Boot message is customized through the AP_BOOT_MSG macro
 void boot() {
-    // Example of how to utilize included simple_crypto.h
-    // This string is 16 bytes long including null terminator
-    // This is the block size of included symmetric encryption
-    char* data = "Crypto Example!";
-    uint8_t ciphertext[BLOCK_SIZE];
-    uint8_t key[KEY_SIZE];
-
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-
-    // Encrypt example data and print out
-    encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
-    print_debug("Encrypted data: ");
-    print_hex_debug(ciphertext, BLOCK_SIZE);
-
-    // Decrypt the encrypted message and print out
-    uint8_t decrypted[BLOCK_SIZE];
-    size_t plaintext_length;
-    decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted, &plaintext_length);
-    print_debug("Decrypted message: %s\r\n", decrypted);
-
     // POST BOOT FUNCTIONALITY
     // DO NOT REMOVE IN YOUR DESIGN
     #ifdef POST_BOOT
@@ -431,7 +408,7 @@ void boot() {
     #else
     // Everything after this point is modifiable in your design
     // LED loop to show that boot occurred
-    for (int i = 0; i < 3; i++) {
+    while (1) {
         LED_On(LED1);
         MXC_Delay(500000);
         LED_On(LED2);
@@ -661,9 +638,10 @@ int main() {
         if (!keysExchanged) {
             // Print out provisioned component IDs
             for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-                // send symmetric key
+                // Send symmetric key
                 secure_key_send(flash_status.component_ids[0], symmetric_key, 32);
                 
+                // Receive component public keys
                 uint8_t receive_buffer[secure_msg_size];
                 int received_length = secure_receive(flash_status.component_ids[0], receive_buffer);
                 
@@ -673,6 +651,8 @@ int main() {
                     printf("%c", receive_buffer[i]);
                 }
                 printf("\n");
+
+                // Send public key
             }
             keysExchanged = true;
         }

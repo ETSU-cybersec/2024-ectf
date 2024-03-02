@@ -85,9 +85,6 @@ void process_attest(void);
 // Global varaibles
 uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
 uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
-uint8_t ciphertext[BLOCK_SIZE];
-uint8_t key[KEY_SIZE];
-uint8_t decrypted[BLOCK_SIZE];
 byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
 byte apPublicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
 size_t secure_msg_size = BLOCK_SIZE * 4;
@@ -204,7 +201,7 @@ void boot() {
     LED_Off(LED2);
     LED_Off(LED3);
     // LED loop to show that boot occurred
-    for (int i = 0; i < 3; i++) {
+    while (1) {
         LED_On(LED1);
         MXC_Delay(500000);
         LED_On(LED2);
@@ -319,12 +316,16 @@ int main(void) {
 
     while (1) {
         if (!keysExchanged) {
+            // Receive symmetric key
             int len = secure_key_receive(receive_buffer);
             set_symmetric_key(len);
             
+            // Send public key
             uint8_t message[] = "hey there!";            
             secure_send(message, sizeof(message) - 1);    
 
+            // Receive AP public key
+            
             keysExchanged = true;
         }
 
