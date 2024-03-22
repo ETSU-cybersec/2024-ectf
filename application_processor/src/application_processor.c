@@ -643,11 +643,11 @@ int main() {
             // Print out provisioned component IDs
             for (unsigned i = 0; i < flash_status.component_cnt; i++) {
                 // Send symmetric key
-                secure_key_send(flash_status.component_ids[0], symmetric_key, 32);
+                secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
                 
                 // Receive component public keys
                 uint8_t receive_buffer[secure_msg_size];
-                int received_length = secure_receive(flash_status.component_ids[0], receive_buffer);
+                int received_length = secure_receive(flash_status.component_ids[i], receive_buffer);
                 
                 // Print received data
                 printf("Received message: ");
