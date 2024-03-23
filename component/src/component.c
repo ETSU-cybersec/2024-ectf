@@ -38,15 +38,6 @@
 
 /********************************* CONSTANTS **********************************/
 
-// Passed in through ectf-params.h
-// Example of format of ectf-params.h shown here
-/*
-#define COMPONENT_ID 0x11111124
-#define COMPONENT_BOOT_MSG "Component boot"
-#define ATTESTATION_LOC "McLean"
-#define ATTESTATION_DATE "08/08/08"
-#define ATTESTATION_CUSTOMER "Fritz"
-*/
 
 /******************************** TYPE DEFINITIONS ********************************/
 // Commands received by Component using 32 bit integer
@@ -114,32 +105,6 @@ void secure_send(uint8_t* buffer, uint8_t len) {
     }
     uint8_t key[KEY_SIZE];
     memcpy(key, symmetric_key, KEY_SIZE * sizeof(uint8_t));
-    encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
-
-    send_packet_and_ack(secure_msg_size, ciph); 
-}
-
-/**
- * @brief Secure Key Send 
- * 
- * @param buffer: uint8_t*, pointer to data to be send
- * @param len: uint8_t, size of data to be sent 
- * 
- * Securely send key data over I2C. 
-*/
-void secure_key_send(uint8_t* buffer, uint8_t len) {
-    uint8_t padded_buffer[secure_msg_size];
-    uint8_t ciph[secure_msg_size];
-
-    // Copy the original plaintext to the padded buffer
-    memcpy(padded_buffer, buffer, len);
-
-    // Add padding bytes with the chosen character
-    for (int i = len; i < secure_msg_size; i++) {
-        padded_buffer[i] = PADDING_CHAR;
-    }
-    uint8_t key[KEY_SIZE];
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     encrypt_sym((uint8_t*)padded_buffer, secure_msg_size, key, ciph);
 
     send_packet_and_ack(secure_msg_size, ciph); 
@@ -269,7 +234,8 @@ void process_validate() {
     validate_message* packet = (validate_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
     //Encrypt and send
-    secure_send(transmit_buffer, sizeof(validate_message));}
+    secure_send(transmit_buffer, sizeof(validate_message));
+}
 
 
 void process_attest() {
@@ -277,16 +243,7 @@ void process_attest() {
     uint8_t len = sprintf((char*)transmit_buffer, "LOC>%s\nDATE>%s\nCUST>%s\n",
                 ATTESTATION_LOC, ATTESTATION_DATE, ATTESTATION_CUSTOMER) + 1;
     //Encrypt and send
-    secure_send(transmit_buffer, len);}
-
-void generate_keys(byte* publicKey) {
-    ecc_key curve_key;
-    WC_RNG rng;
-
-	int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
-	if (keygen != 0) {
-		printf("Error generating key: %d\n", keygen);
-	}
+    secure_send(transmit_buffer, len);
 }
 
 void set_symmetric_key(int len) {
@@ -312,16 +269,20 @@ int main(void) {
     
     LED_On(LED2);
 
-    bool keysExchanged = false;
+    // count for symmetric key exchange
     uint8_t count = 0;
+    
     while (1) {
+        // set symmetric key
         if ( count % 5 == 0 ) {
-            // Receive symmetric key
+            // Receive and set symmetric key
             int len = secure_key_receive(receive_buffer);
             set_symmetric_key(len);
-   
+  
+            // ACK received key
             uint8_t message[] = "ACK";            
             secure_send(message, sizeof(message) - 1);  
+
             count = 0;
         }
         

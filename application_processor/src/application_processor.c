@@ -40,17 +40,6 @@
 #include "global_secrets.h"
 
 /********************************* CONSTANTS **********************************/
-
-// Passed in through ectf-params.h
-// Example of format of ectf-params.h shown here
-/*
-#define AP_PIN "123456"
-#define AP_TOKEN "0123456789abcdef"
-#define COMPONENT_IDS 0x11111124, 0x11111125
-#define COMPONENT_CNT 2
-#define AP_BOOT_MSG "Test boot message"
-*/
-
 // Flash Macros
 #define FLASH_ADDR ((MXC_FLASH_MEM_BASE + MXC_FLASH_MEM_SIZE) - (2 * MXC_FLASH_PAGE_SIZE))
 
@@ -97,8 +86,6 @@ typedef enum {
 /********************************* GLOBAL VARIABLES **********************************/
 // Variable for information stored in flash memory
 flash_entry flash_status;
-byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-byte publicKeys[ECC_BUFSIZE][COMPONENT_CNT]; /* Public key size for secp256r1 */
 size_t secure_msg_size = BLOCK_SIZE * 4;
 uint8_t symmetric_key[32];
 
@@ -115,8 +102,6 @@ uint8_t symmetric_key[32];
 
 */
 int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    // multiplex into structure
-    
     uint8_t padded_buffer[secure_msg_size];
     uint8_t ciph[secure_msg_size];
 
@@ -147,8 +132,6 @@ int secure_send(uint8_t address, uint8_t* buffer, uint8_t len) {
  * Securely send key data over I2C.
 */
 int secure_key_send(uint8_t address, uint8_t* buffer, uint8_t len) {
-    // multiplex into structure
-    
     uint8_t padded_buffer[secure_msg_size];
     uint8_t ciph[secure_msg_size];
 
@@ -185,28 +168,6 @@ int secure_receive(i2c_addr_t address, uint8_t* buffer) {
     // //Decrypt receive
     uint8_t key[KEY_SIZE];
     memcpy(key, symmetric_key, KEY_SIZE * sizeof(uint8_t));
-    size_t plaintext_length;
-    decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
-    
-    return plaintext_length;
-}
-
-/**
- * @brief Secure Key Receive
- * 
- * @param address: i2c_addr_t, I2C address of sender
- * @param buffer: uint8_t*, pointer to buffer to receive data to
- * 
- * @return int: number of bytes received, negative if error
- * 
- * Securely receive key data over I2C. 
-*/
-int secure_key_receive(i2c_addr_t address, uint8_t* buffer) {
-    poll_and_receive_packet(address, buffer);
-    
-    // //Decrypt receive
-    uint8_t key[KEY_SIZE];
-    memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
     size_t plaintext_length;
     decrypt_sym(buffer, secure_msg_size, key, buffer, &plaintext_length);
     
@@ -269,7 +230,8 @@ int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
     if (result == ERROR_RETURN) {
         return ERROR_RETURN;
     }
-    
+
+    // receive and decrypt response
     int len = secure_receive(addr, receive);
 
     if (len == ERROR_RETURN) {
@@ -542,7 +504,7 @@ void generate_keys(uint8_t* symKey) {
         return -1;
     }
 */
-
+    // generate symmetric key
     for (int i = 0; i < 32; i++) {
         symKey[i] = rand() % 10; // Generates random numbers between 0 and 99
     }
@@ -555,12 +517,11 @@ int main() {
     // Initialize board
     init();
 
+    print_info("Application Processor Started\n");
+   
     // generate symmetric and asymmetric keys
     generate_keys(symmetric_key);
 
-    // Print the component IDs to be helpful
-    // Your design does not need to do this
-    print_info("Application Processor Started\n");
     
     uint8_t count = 0;
     // Handle commands forever
@@ -569,8 +530,8 @@ int main() {
     while (1) {
         recv_input("Enter Command: ", buf, size);
 
+        // send symmetric key to component(s)
         if ( count % 5 == 0) {
-            // Print out provisioned component IDs
             for (unsigned i = 0; i < flash_status.component_cnt; i++) {
                 // Send symmetric key
                 secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
