@@ -313,7 +313,7 @@ int main(void) {
     LED_On(LED2);
 
     bool keysExchanged = false;
-    uint count = 0;
+    uint8_t count = 0;
     while (1) {
         if ( count % 5 == 0 ) {
             // Receive symmetric key

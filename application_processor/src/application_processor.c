@@ -562,7 +562,7 @@ int main() {
     // Your design does not need to do this
     print_info("Application Processor Started\n");
     
-    uint count = 0;
+    uint8_t count = 0;
     // Handle commands forever
     size_t size = 50;
     char buf[size];
