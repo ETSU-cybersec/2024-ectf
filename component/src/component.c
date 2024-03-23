@@ -297,13 +297,11 @@ void set_symmetric_key(int len) {
         exit(EXIT_FAILURE);
     }
 }
+
 /*********************************** MAIN *************************************/
 
 int main(void) {
     printf("Component Started\n");
-    
-    byte publicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-    // generate_keys(&publicKey);
     
     // Enable Global Interrupts
     __enable_irq();
@@ -315,21 +313,19 @@ int main(void) {
     LED_On(LED2);
 
     bool keysExchanged = false;
-
+    uint count = 0;
     while (1) {
-        if (!keysExchanged) {
+        if ( count % 5 == 0 ) {
             // Receive symmetric key
             int len = secure_key_receive(receive_buffer);
             set_symmetric_key(len);
-            
-            // Send public key
-            uint8_t message[] = "hey there!";            
-            secure_send(message, sizeof(message) - 1);    
-
-            // Receive AP public key
-            
-            keysExchanged = true;
+   
+            uint8_t message[] = "ACK";            
+            secure_send(message, sizeof(message) - 1);  
+            count = 0;
         }
+        
+        count += 1;
 
         // Receive and decrypt command
         secure_receive(receive_buffer);

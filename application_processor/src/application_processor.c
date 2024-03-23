@@ -28,6 +28,7 @@
 #include "simple_flash.h"
 #include "host_messaging.h"
 #include "simple_crypto.h"
+#include <wolfssl/wolfcrypt/random.h>
 
 #ifdef POST_BOOT
 #include <stdint.h>
@@ -530,91 +531,22 @@ void attempt_attest() {
 }
 
 
-void hooven() {
-    char* data = "Crypto Example!";
-    uint8_t ciphertext[BLOCK_SIZE];
-    uint8_t key[KEY_SIZE];
-    byte publicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-    byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-    ecc_key curve_key;
-	WC_RNG rng;
-
-	int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
-	if (keygen != 0) {
-		print_error("Error generating key: %d\n", keygen);
-	}
-    print_error("Public Key: ");
-    for (int i = 0; i < 65; ++i) {
-        printf("%02X", publicKey[i]);
-    }
-    print_error("\n");
+void generate_keys(uint8_t* symKey) {
+/*    WC_RNG rng;
+    wc_InitRng(&rng);
     
-     // Print out provisioned component IDs
-    for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-        secure_send(flash_status.component_ids[i], publicKey, sizeof(publicKey));
+    if (wc_RNG_GenerateBlock(&rng, symKey, 32) != 0) {
+        // Handle error if key generation fails
+        printf("Error generating symmetric key\n");
+        // Additional error handling code here
+        return -1;
     }
-
-    
-
-    print_error("Private Key: %d\n", privateKey); 	
-    print_error("Private Key: ");
-    for (int i = 0; i < 65; ++i) {
-        printf("%02X", privateKey[i]);
-    }
-    print_error("\n");
-
-	memcpy(key, VALIDATION_KEY, KEY_SIZE * sizeof(uint8_t));
-
-    // Encrypt example data and print out
-    encrypt_sym((uint8_t*)data, BLOCK_SIZE, key, ciphertext); 
-    print_debug("Encrypted data: ");
-    print_hex_debug(ciphertext, BLOCK_SIZE);
-
-	word32 sig_len = ECC_MAX_SIG_SIZE;
-	byte signature[sig_len];
-	uint8_t digest[HASH_SIZE];
-
-	int sigCheck = asym_sign(ciphertext, signature, &curve_key, &sig_len, &rng, digest);
-	if (sigCheck != 0) {
-		print_error("Error with signing: %d\n");
-	}
-	else {
-		print_debug("SIGN SUCCESS: %d\n", sigCheck);
-		print_hex_debug(signature, sig_len);
-		print_hex_debug(ciphertext, HASH_SIZE);
-	}
-
-	int status = 0;
-	
-	int validCheck = asym_validate(signature, sig_len, digest, HASH_SIZE, &status, &publicKey);
-	if (validCheck != 0) {
-		print_error("Validation failed: %d\n", validCheck);
-	} else if (status == 0) {
-		print_error("Invalid Signature: %d\n", status);
-	} else {
-		print_debug("Verification succeeded. Signature is Valid!\n");
-		
-		// Decrypt the encrypted message and print out
-		uint8_t decrypted[BLOCK_SIZE];
-        
-        size_t plaintext_length;
-    	decrypt_sym(ciphertext, BLOCK_SIZE, key, decrypted, &plaintext_length);
-    	print_debug("Decrypted message: %s\r\n", decrypted);
-	}
-}
-
-void generate_keys(byte* publicKey, uint8_t* symKey) {
-    // ecc_key curve_key;
-    // WC_RNG rng;
-
-	// int keygen = ecc_keygen(&curve_key, &rng, publicKey, privateKey);
-	// if (keygen != 0) {
-	// 	print_error("Error generating key: %d\n", keygen);
-	// }
+*/
 
     for (int i = 0; i < 32; i++) {
         symKey[i] = rand() % 10; // Generates random numbers between 0 and 99
     }
+    
 }
 
 /*********************************** MAIN *************************************/
@@ -624,42 +556,33 @@ int main() {
     init();
 
     // generate symmetric and asymmetric keys
-    byte publicKey[ECC_BUFSIZE];
-    generate_keys(publicKey, symmetric_key);
+    generate_keys(symmetric_key);
 
     // Print the component IDs to be helpful
     // Your design does not need to do this
     print_info("Application Processor Started\n");
     
-    bool keysExchanged = false;
-
+    uint count = 0;
     // Handle commands forever
     size_t size = 50;
     char buf[size];
     while (1) {
         recv_input("Enter Command: ", buf, size);
 
-        if (!keysExchanged) {
+        if ( count % 5 == 0) {
             // Print out provisioned component IDs
             for (unsigned i = 0; i < flash_status.component_cnt; i++) {
                 // Send symmetric key
                 secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
-                
-                // Receive component public keys
-                uint8_t receive_buffer[secure_msg_size];
-                int received_length = secure_receive(flash_status.component_ids[i], receive_buffer);
-                
-                // Print received data
-                printf("Received message: ");
-                for (int i = 0; i < received_length; i++) {
-                    printf("%c", receive_buffer[i]);
-                }
-                printf("\n");
 
-                // Send public key
+                // block program until ACK received
+                uint8_t receive_buffer[secure_msg_size];
+                secure_receive(flash_status.component_ids[i], receive_buffer);
             }
-            keysExchanged = true;
+            count = 0;
         }
+
+        count += 1;
 
         // Execute requested command
         if (!strcmp(buf, "list")) {
@@ -670,8 +593,6 @@ int main() {
             attempt_replace();
         } else if (!strcmp(buf, "attest")) {
             attempt_attest();
-        } else if (!strcmp(buf, "hooven")) {
-			hooven();
 		} else {
             print_error("Unrecognized command '%s'\n", buf);
         }
