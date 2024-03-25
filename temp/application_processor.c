@@ -18,6 +18,7 @@
 #include "mxc_delay.h"
 #include "mxc_device.h"
 #include "nvic_table.h"
+#include "tmr.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -28,7 +29,6 @@
 #include "simple_flash.h"
 #include "host_messaging.h"
 #include "simple_crypto.h"
-#include "timer.h"
 #include <wolfssl/wolfcrypt/random.h>
 
 #ifdef POST_BOOT
@@ -41,15 +41,22 @@
 #include "global_secrets.h"
 
 /********************************* CONSTANTS **********************************/
-// Function Macro
-#define timer get_timer_count()
-
 // Flash Macros
 #define FLASH_ADDR ((MXC_FLASH_MEM_BASE + MXC_FLASH_MEM_SIZE) - (2 * MXC_FLASH_PAGE_SIZE))
 
 // Library call return types
 #define SUCCESS_RETURN 0
 #define ERROR_RETURN -1
+
+
+
+#define CONT_FREQ 2 // (Hz)
+#define CONT_TIMER MXC_TMR1 // Can be MXC_TMR0 through MXC_TMR5
+// Parameters for PWM output
+#define OST_CLOCK_SOURCE MXC_TMR_8K_CLK // \ref mxc_tmr_clock_t
+#define PWM_CLOCK_SOURCE MXC_TMR_32K_CLK // \ref mxc_tmr_clock_t
+#define CONT_CLOCK_SOURCE MXC_TMR_8M_CLK // \ref mxc_tmr_clock_t
+
 
 /******************************** TYPE DEFINITIONS ********************************/
 // Data structure for sending commands to component
@@ -224,12 +231,6 @@ void init() {
     
     // Initialize board link interface
     board_link_init();
-
-    // generate symmetric and asymmetric keys
-    generate_keys(symmetric_key);
-
-    // initialize hardware timer
-    init_timer();
 }
 
 // Send a command to a component and receive the result
@@ -502,8 +503,10 @@ void attempt_attest() {
     }
 }
 
-// generate symmetric key for I2C communication
+
 void generate_keys(uint8_t* symKey) {
+    // generate symmetric key
+
     // Clear the memory allocated for the symmetric key
     memset(symKey, 0, sizeof(symKey));
     // Initialize the True Random Number Generator (TRNG) peripheral
@@ -512,7 +515,6 @@ void generate_keys(uint8_t* symKey) {
     MXC_TRNG_Random(symKey, 32);
     // Shutdown the TRNG peripheral to conserve power
     MXC_TRNG_Shutdown();
-
 }
 
 /*********************************** MAIN *************************************/
@@ -522,6 +524,31 @@ int main() {
     init();
 
     print_info("Application Processor Started\n");
+    
+
+    // generate symmetric and asymmetric keys
+    generate_keys(symmetric_key);
+
+    // Generate a counter based on Timer peripheral on Counter Mode on the MAX78000 microcontroller
+    // Declare a variable named periodTicks of type uint32_t to store the calculated period in timer ticks.
+    uint32_t periodTicks = MXC_TMR_GetPeriod(CONT_TIMER, CONT_CLOCK_SOURCE, 128, CONT_FREQ);
+    // Define the Timer Conmfiguration
+    mxc_tmr_cfg_t tmr = {
+        .pres = TMR_PRES_128,        // Timer prescaler value
+        .mode = TMR_MODE_COUNTER,    // Timer mode (counter mode)
+        .bitMode = TMR_BIT_MODE_32,  // Timer bit mode (32-bit)
+        .clock = CONT_CLOCK_SOURCE,  // Timer clock source
+        .cmp_cnt = periodTicks,      // Compare register value (not used in this example)
+    };
+
+    // Checking Timer Initialization
+    if (MXC_TMR_Init(CONT_TIMER, &tmr, true) != E_NO_ERROR) {
+        printf("Failed Counter Mode timer Initialization.\n");
+    }
+
+    // Read the counter value from the Timer peripheral
+    uint32_t counter = MXC_TMR_GetCount(CONT_TIMER);
+
 
     // Handle commands forever
     size_t size = 50;
@@ -530,7 +557,7 @@ int main() {
         recv_input("Enter Command: ", buf, size);
 
         // send symmetric key to component(s)
-        if ( timer % 5 == 0) {
+        if ( counter % 5 == 0) {
             for (unsigned i = 0; i < flash_status.component_cnt; i++) {
                 // Send symmetric key
                 secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
@@ -539,11 +566,13 @@ int main() {
                 uint8_t receive_buffer[secure_msg_size];
                 secure_receive(flash_status.component_ids[i], receive_buffer);
             }
-            
-            reset_timer();
+            // Reset Counter
+            MXC_TMR_SetCount(CONT_TIMER, 0);
         }
 
-        increment_timer_count();
+        // Increment the Counter
+        MXC_TMR_SetCount(CONT_TIMER, MXC_TMR_GetCount(CONT_TIMER) + 1);
+        counter = MXC_TMR_GetCount(CONT_TIMER);
 
         // Execute requested command
         if (!strcmp(buf, "list")) {

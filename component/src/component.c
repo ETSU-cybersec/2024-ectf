@@ -24,6 +24,7 @@
 #include "simple_i2c_peripheral.h"
 #include "board_link.h"
 #include "simple_crypto.h"
+#include "timer.h"
 
 // Includes from containerized build
 #include "ectf_params.h"
@@ -267,26 +268,26 @@ int main(void) {
     i2c_addr_t addr = component_id_to_i2c_addr(COMPONENT_ID);
     board_link_init(addr);
     
+    // initialize hardware timer
+    init_timer();
+
     LED_On(LED2);
 
-    // count for symmetric key exchange
-    uint8_t count = 0;
-    
     while (1) {
         // set symmetric key
-        if ( count % 5 == 0 ) {
+        if ( get_timer_count() % 5 == 0 ) {
             // Receive and set symmetric key
             int len = secure_key_receive(receive_buffer);
             set_symmetric_key(len);
-  
+        
             // ACK received key
             uint8_t message[] = "ACK";            
             secure_send(message, sizeof(message) - 1);  
 
-            count = 0;
+            reset_timer();
         }
         
-        count += 1;
+        increment_timer_count();
 
         // Receive and decrypt command
         secure_receive(receive_buffer);
