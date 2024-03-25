@@ -531,6 +531,7 @@ int main() {
 
         // send symmetric key to component(s)
         if ( timer % 5 == 0) {
+	    generate_keys(symmetric_key);
             for (unsigned i = 0; i < flash_status.component_cnt; i++) {
                 // Send symmetric key
                 secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
