@@ -79,7 +79,7 @@ uint8_t receive_buffer[MAX_I2C_MESSAGE_LEN];
 uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
 byte privateKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
 byte apPublicKey[ECC_BUFSIZE]; /* Public key size for secp256r1 */
-size_t secure_msg_size = BLOCK_SIZE * 4;
+size_t secure_msg_size = BLOCK_SIZE * 15;
 uint8_t symmetric_key[32];
 
 

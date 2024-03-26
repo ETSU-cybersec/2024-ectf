@@ -90,7 +90,7 @@ typedef enum {
 /********************************* GLOBAL VARIABLES **********************************/
 // Variable for information stored in flash memory
 flash_entry flash_status;
-size_t secure_msg_size = BLOCK_SIZE * 4;
+size_t secure_msg_size = BLOCK_SIZE * 15;
 uint8_t symmetric_key[32];
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
