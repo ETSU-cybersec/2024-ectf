@@ -20,6 +20,7 @@
 
 void init_timer();
 void reset_timer();
+void set_timer(uint8_t count);
 uint32_t get_timer_count();
 void increment_timer_count();
 

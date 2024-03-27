@@ -47,7 +47,8 @@ typedef enum {
     COMPONENT_CMD_SCAN,
     COMPONENT_CMD_VALIDATE,
     COMPONENT_CMD_BOOT,
-    COMPONENT_CMD_ATTEST
+    COMPONENT_CMD_ATTEST,
+    COMPONENT_CMD_COORDINATE
 } component_cmd_t;
 
 /******************************** TYPE DEFINITIONS ********************************/
@@ -202,6 +203,12 @@ void component_process_cmd() {
         break;
     case COMPONENT_CMD_ATTEST:
         process_attest();
+        break;
+    case COMPONENT_CMD_COORDINATE:
+        set_timer(command->params[0]);
+        // ACK received key
+        uint8_t message[] = "ACK";            
+        secure_send(message, sizeof(message) - 1); 
         break;
     default:
         printf("Error: Unrecognized command received %d\n", command->opcode);

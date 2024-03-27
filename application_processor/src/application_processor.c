@@ -84,7 +84,8 @@ typedef enum {
     COMPONENT_CMD_SCAN,
     COMPONENT_CMD_VALIDATE,
     COMPONENT_CMD_BOOT,
-    COMPONENT_CMD_ATTEST
+    COMPONENT_CMD_ATTEST,
+    COMPONENT_CMD_COORDINATE
 } component_cmd_t;
 
 /********************************* GLOBAL VARIABLES **********************************/
@@ -477,6 +478,20 @@ void attempt_replace() {
             print_debug("Replaced 0x%08x with 0x%08x\n", component_id_out,
                     component_id_in);
             print_success("Replace\n");
+            
+            // send current key
+            secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
+            // block program until ACK received
+            uint8_t receive_buffer[secure_msg_size];
+            secure_receive(flash_status.component_ids[i], receive_buffer);
+
+            // send coordinate msg
+            uint8_t transmit_buffer[MAX_I2C_MESSAGE_LEN];
+            command_message* command = (command_message*) transmit_buffer;
+            command->opcode = COMPONENT_CMD_COORDINATE;
+            command->params[0] = timer;
+            int len = issue_cmd(flash_status.component_ids[i], transmit_buffer, receive_buffer);
+
             return;
         }
     }

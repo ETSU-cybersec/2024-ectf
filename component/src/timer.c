@@ -32,6 +32,11 @@ void init_timer() {
     reset_timer();
 }
 
+void set_timer(uint8_t count) {
+    MXC_TMR_SetCount(CONT_TIMER, count);
+}
+
+
 // reset the timer count
 void reset_timer() {
     MXC_TMR_SetCount(CONT_TIMER, 0);
