@@ -279,13 +279,13 @@ int scan_components() {
         // Send out command and receive result
         //int len = issue_cmd(addr, transmit_buffer, receive_buffer);
 
-        int result = send_packet(addr, sizeof(uint8_t), transmit);
+        int result = send_packet(addr, sizeof(uint8_t), transmit_buffer);
         if (result == ERROR_RETURN) {
             return ERROR_RETURN;
         }
         
         // Receive message
-        int len = poll_and_receive_packet(addr, receive);
+        int len = poll_and_receive_packet(addr, receive_buffer);
         if (len == ERROR_RETURN) {
             return ERROR_RETURN;
         }
