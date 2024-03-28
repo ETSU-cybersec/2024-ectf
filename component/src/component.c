@@ -234,7 +234,8 @@ void process_scan() {
     scan_message* packet = (scan_message*) transmit_buffer;
     packet->component_id = COMPONENT_ID;
     //Encrypt and send
-    secure_send(transmit_buffer, sizeof(scan_message));
+    //secure_send(transmit_buffer, sizeof(scan_message));
+    send_packet_and_ack(sizeof(scan_message), transmit_buffer);
 }
 
 void process_validate() {
