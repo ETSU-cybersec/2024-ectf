@@ -236,7 +236,7 @@ void init() {
 // Send a command to a component and receive the result
 int issue_cmd(i2c_addr_t addr, uint8_t* transmit, uint8_t* receive) {
     // Encrypt and send message
-    int result = secure_send(addr, transmit, secure_msg_size);
+    int result = send_packet(addr, sizeof(uint8_t), transmit);
     
     if (result == ERROR_RETURN) {
         return ERROR_RETURN;
@@ -279,13 +279,13 @@ int scan_components() {
         // Send out command and receive result
         //int len = issue_cmd(addr, transmit_buffer, receive_buffer);
 
-        int result = send_packet(addr, sizeof(uint8_t), transmit_buffer);
+        int result = send_packet(addr, sizeof(uint8_t), transmit);
         if (result == ERROR_RETURN) {
             return ERROR_RETURN;
         }
         
         // Receive message
-        int len = poll_and_receive_packet(addr, receive_buffer);
+        int len = poll_and_receive_packet(addr, receive);
         if (len == ERROR_RETURN) {
             return ERROR_RETURN;
         }

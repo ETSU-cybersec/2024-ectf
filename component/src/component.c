@@ -298,7 +298,7 @@ int main(void) {
         increment_timer_count();
 
         // Receive and decrypt command
-        secure_receive(receive_buffer);
+        wait_and_receive_packet(receive_buffer);
         component_process_cmd();
     }
 }
