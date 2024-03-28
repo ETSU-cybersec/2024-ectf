@@ -15,8 +15,8 @@ if [ "$current_dir_name" != "2024-ectf" ]; then
     cd $ectf_dir
 fi
 
-poetry run python ectf_tools/update.py --infile build/ap.img --port /dev/ttyACM0 &
-poetry run python ectf_tools/update.py --infile build/comp1.img --port /dev/ttyACM1 &
-poetry run python ectf_tools/update.py --infile build/comp2.img --port /dev/ttyACM2 &
+poetry run python ectf_tools/update.py --infile build/ap.img --port /dev/ttyACM0; 
+poetry run python ectf_tools/update.py --infile build/comp1.img --port /dev/ttyACM1;
+poetry run python ectf_tools/update.py --infile build/comp2.img --port /dev/ttyACM2;
 wait
 echo "Flashed 2 Components and AP"
