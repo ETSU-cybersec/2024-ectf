@@ -285,7 +285,7 @@ int scan_components() {
         }
         
         // Receive message
-        int len = poll_and_receive_packet(addr, receive);
+        int len = poll_and_receive_packet(addr, receive_buffer);
         if (len == ERROR_RETURN) {
             return ERROR_RETURN;
         }
