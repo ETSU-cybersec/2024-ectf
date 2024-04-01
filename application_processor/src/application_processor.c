@@ -281,13 +281,13 @@ int scan_components() {
 
         int result = send_packet(addr, sizeof(uint8_t), transmit_buffer);
         if (result == ERROR_RETURN) {
-            return ERROR_RETURN;
+            continue;
         }
         
         // Receive message
         int len = poll_and_receive_packet(addr, receive_buffer);
         if (len == ERROR_RETURN) {
-            return ERROR_RETURN;
+            continue;
         }
 
         // Success, device is present
