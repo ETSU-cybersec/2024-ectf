@@ -277,8 +277,6 @@ int scan_components() {
         command->opcode = COMPONENT_CMD_SCAN;
 
         // Send out command and receive result
-        //int len = issue_cmd(addr, transmit_buffer, receive_buffer);
-
         int result = send_packet(addr, sizeof(uint8_t), transmit_buffer);
         if (result == ERROR_RETURN) {
             continue;
@@ -558,16 +556,6 @@ int main() {
         // send symmetric key to component(s)
         if ( timer % 5 == 0) {
 	    generate_keys(symmetric_key);
-/*            for (unsigned i = 0; i < flash_status.component_cnt; i++) {
-                // Send symmetric key
-                secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
-
-                // block program until ACK received
-                uint8_t receive_buffer[secure_msg_size];
-                secure_receive(flash_status.component_ids[i], receive_buffer);
-            }
-  */
-
 
         for (i2c_addr_t addr = 0x8; addr < 0x78; addr++) {
             // I2C Blacklist:
