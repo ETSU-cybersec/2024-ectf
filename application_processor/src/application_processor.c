@@ -558,7 +558,7 @@ int main() {
         // send symmetric key to component(s)
         if ( timer % 5 == 0) {
 	    generate_keys(symmetric_key);
-            for (unsigned i = 0; i < flash_status.component_cnt; i++) {
+/*            for (unsigned i = 0; i < flash_status.component_cnt; i++) {
                 // Send symmetric key
                 secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
 
@@ -566,7 +566,38 @@ int main() {
                 uint8_t receive_buffer[secure_msg_size];
                 secure_receive(flash_status.component_ids[i], receive_buffer);
             }
-            
+  */
+
+
+        for (i2c_addr_t addr = 0x8; addr < 0x78; addr++) {
+            // I2C Blacklist:
+            // 0x18, 0x28, and 0x36 conflict with separate devices on MAX78000FTHR
+            if (addr == 0x18 || addr == 0x28 || addr == 0x36) {
+                continue;
+            }
+
+            // Create command message 
+            command_message* command = (command_message*) transmit_buffer;
+            command->opcode = COMPONENT_CMD_SCAN;
+
+            int result = secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
+            if (result == ERROR_RETURN) {
+                continue;
+            }
+        
+            // Receive message
+            uint8_t receive_buffer[secure_msg_size];
+            secure_receive(flash_status.component_ids[i], receive_buffer);
+            if (len == ERROR_RETURN) {
+                continue;
+            }   
+
+            // Success, device is present
+            if (len > 0) {
+                scan_message* scan = (scan_message*) receive_buffer;
+                print_info("F>0x%08x\n", scan->component_id);
+                }
+            }
             reset_timer();
         }
 
