@@ -24,5 +24,5 @@ fi
 
 # Run the Python commands
 echo "Building 2 components"
-poetry run python ectf_tools/build_comp.py -d . -on comp1 -od build -id 0x08 -b "Hello from Component 1" -al "Johnson City" -ad "02/13/2024" -ac "ETSU Cyberbucs"
-poetry run python ectf_tools/build_comp.py -d . -on comp2 -od build -id 0x09 -b "Hello from Component 2" -al "Johnson City" -ad "02/13/2024" -ac "ETSU Cyberbucs"
+poetry run python ectf_tools/build_comp.py -d . -on comp1 -od build -id 0x675db50b -b "Hello from Component 1" -al "Johnson City" -ad "02/13/2024" -ac "ETSU Cyberbucs"
+poetry run python ectf_tools/build_comp.py -d . -on comp2 -od build -id 0x05b55a23 -b "Hello from Component 2" -al "Johnson City" -ad "02/13/2024" -ac "ETSU Cyberbucs"

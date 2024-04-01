@@ -576,18 +576,14 @@ int main() {
                 continue;
             }
 
-            // Create command message 
-            command_message* command = (command_message*) transmit_buffer;
-            command->opcode = COMPONENT_CMD_SCAN;
-
-            int result = secure_key_send(flash_status.component_ids[i], symmetric_key, 32);
+            int result = secure_key_send(addr, symmetric_key, 32);
             if (result == ERROR_RETURN) {
                 continue;
             }
         
             // Receive message
             uint8_t receive_buffer[secure_msg_size];
-            int len = secure_receive(flash_status.component_ids[i], receive_buffer);
+            int len = secure_receive(addr, receive_buffer);
             if (len == ERROR_RETURN) {
                 continue;
             }   

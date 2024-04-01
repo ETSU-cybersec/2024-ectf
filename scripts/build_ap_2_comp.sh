@@ -23,4 +23,4 @@ if [ ! -f "deployment/global_secrets.h" ]; then
 fi
 
 echo "Building AP provisioned for 2 component"
-poetry run python ectf_tools/build_ap.py -d . -on ap -od build -p 1234 -t 1234123412341234 -c 2 -ids 0x08,0x09 -b "Hello from AP"
+poetry run python ectf_tools/build_ap.py -d . -on ap -od build -p 1234 -t 1234123412341234 -c 2 -ids 0x05b55a23,0x675db50b -b "Hello from AP"
