@@ -587,13 +587,7 @@ int main() {
             if (len == ERROR_RETURN) {
                 continue;
             }   
-
-            // Success, device is present
-            if (len > 0) {
-                scan_message* scan = (scan_message*) receive_buffer;
-                print_info("F>0x%08x\n", scan->component_id);
-                }
-            }
+        }
             reset_timer();
         }
 
