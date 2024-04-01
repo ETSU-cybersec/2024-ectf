@@ -587,7 +587,7 @@ int main() {
         
             // Receive message
             uint8_t receive_buffer[secure_msg_size];
-            secure_receive(flash_status.component_ids[i], receive_buffer);
+            int len = secure_receive(flash_status.component_ids[i], receive_buffer);
             if (len == ERROR_RETURN) {
                 continue;
             }   
